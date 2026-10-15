@@ -44,7 +44,7 @@
   .ccSug{font-size:10px;color:#6B7280;margin-top:6px}
   .statusbox{padding:12px;border-radius:12px;text-align:center;font-weight:800;font-size:13px;margin-bottom:12px;border:1px solid}
   .pCard{display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;background:#0D1218;border:1px solid #1F2937;margin-bottom:12px}
-  .pCard .avatar{width:48px;height:48px;border-radius:50%;background:rgba(0,230,246,.12);border:2px solid rgba(0,230,118,.35);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+  .pCard .avatar{width:48px;height:48px;border-radius:50%;background:rgba(0,230,118,.12);border:2px solid rgba(0,230,118,.35);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
   .pCard .info{flex:1;min-width:0}
   .pCard .nome{font-weight:800;font-size:14px}
   .pCard .det{font-size:11px;color:#9CA3AF;margin-top:2px}
@@ -83,7 +83,7 @@ const KEY_SESSAO = 'vdm_motoqueiro';
 const KEY_ALERTA = 'vdm_alerta_motoqueiro';
 
 let sessao = null;
-let tela = 'login';
+let tela = 'login';           // login | feed | minha | perfil
 let modoLogin = 'entrar';
 let pollTimer = null;
 let bloqueioTimer = null;
@@ -95,6 +95,7 @@ let ultimaAssinatura = '';
 let corridasVistas = {};
 let map = null, mkMoto = null, mkOrig = null, mkDest = null, linha = null;
 let lastPgStatusM = '';
+let perfilDados = null;
 
 // ===================== MODO ALERTA (som com tela apagada) =====================
 let alertaAtivo = localStorage.getItem(KEY_ALERTA) === '1';
@@ -118,8 +119,6 @@ function garantirAudio(){
   return audioCtx;
 }
 
-// Toca um "silêncio" contínuo para o Android tratar o app como mídia ativa
-// e NÃO congelar a página quando a tela apaga.
 function ligarAudioVivo(){
   try{
     garantirAudio();
@@ -127,10 +126,10 @@ function ligarAudioVivo(){
     const secs = 2;
     const buf = audioCtx.createBuffer(1, audioCtx.sampleRate*secs, audioCtx.sampleRate);
     const data = buf.getChannelData(0);
-    for(let i=0;i<data.length;i++) data[i] = 0; // silêncio
+    for(let i=0;i<data.length;i++) data[i] = 0;
     silentSrc = audioCtx.createBufferSource();
     silentSrc.buffer = buf; silentSrc.loop = true;
-    const g = audioCtx.createGain(); g.gain.value = 0.0001; // inaudível
+    const g = audioCtx.createGain(); g.gain.value = 0.0001;
     silentSrc.connect(g); g.connect(audioCtx.destination);
     silentSrc.start();
   }catch(e){}
@@ -140,7 +139,6 @@ function desligarAudioVivo(){
 }
 
 function notificar(titulo, corpo){
-  // Notificação de SISTEMA (vibra + aparece na tela de bloqueio) + bipe
   beep();
   try{
     if('Notification' in window && Notification.permission==='granted'){
@@ -172,7 +170,6 @@ function desativarAlerta(){
 }
 window.toggleAlerta = () => { alertaAtivo ? desativarAlerta() : ativarAlerta(); };
 
-// Se o usuário já tinha deixado ativo, re-liga o áudio no primeiro toque (exigência do navegador)
 document.addEventListener('touchend', function umaVez(){
   if(alertaAtivo) ligarAudioVivo();
   document.removeEventListener('touchend', umaVez);
@@ -181,7 +178,6 @@ document.addEventListener('click', function umaVez2(){
   if(alertaAtivo) ligarAudioVivo();
   document.removeEventListener('click', umaVez2);
 }, {once:true});
-
 // ===================== FIM MODO ALERTA =====================
 
 const esc = s => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -266,6 +262,7 @@ function atualizarMeuMarker(){
   }
 }
 
+// ===================== RENDER =====================
 function render(){
   atualizarChip();
   limparMapa();
@@ -273,6 +270,7 @@ function render(){
   if(tela==='login') return renderLogin(app);
   if(tela==='feed') return renderFeed(app);
   if(tela==='minha') return renderMinha(app);
+  if(tela==='perfil') return renderPerfil(app);
 }
 
 function botaoAlerta(){
@@ -386,7 +384,7 @@ window.fazerLogin = async () => {
     if(!achado){ toast('Conta não encontrada. Faça o cadastro.',true); return; }
     if(achado.senhaHash !== hash(senha)){ toast('Senha incorreta.',true); return; }
     if(achado.bloqueado === true){ toast('🚫 Conta bloqueada pelo administrador.',true); return; }
-    salvarSessao({ id:achado.id, nome:achado.nome, telefone:achado.telefone, placa:achado.placa, modelo:achado.modelo, cor:achado.cor });
+    salvarSessao({ id:achado.id, nome:achado.nome, telefone:achado.telefone, placa:achado.placa, modelo:achado.modelo, cor:achado.cor, pix:achado.pix });
     toast('✅ Online! Boas corridas, '+achado.nome.split(' ')[0]+'!');
     entrarNoSistema();
   }catch(e){ toast('Erro: '+e.message,true); }
@@ -418,6 +416,7 @@ function iniciarVerificacaoBloqueio(){
   bloqueioTimer = setInterval(verificarBloqueio, 15000);
 }
 
+// ===================== FEED =====================
 function renderFeed(app){
   app.innerHTML = `
     ${botaoAlerta()}
@@ -426,6 +425,7 @@ function renderFeed(app){
     </div>
     <div class="lbl" style="margin:0 0 8px">📡 Pedidos de corrida abertos</div>
     <div id="listaFeed"><div class="state"><div class="big">📡</div>Buscando pedidos...</div></div>
+    <button class="btn blue" style="margin-bottom:8px" onclick="abrirPerfil()">⚙️ Meus dados e da moto</button>
     <button class="btn ghost" onclick="sair()">🚪 Sair / ficar offline</button>
   `;
 }
@@ -482,6 +482,106 @@ window.enviarOferta = async (cid) => {
   }catch(e){ toast('Erro: '+e.message,true); }
 };
 
+// ===================== PERFIL / EDITAR MEUS DADOS =====================
+window.abrirPerfil = async () => {
+  if(!sessao) return;
+  try{
+    const m = await api('/motoqueiros/'+sessao.id+'.json','GET');
+    if(!m){ toast('Conta não encontrada.',true); return; }
+    perfilDados = m;
+    tela='perfil';
+    render();
+  }catch(e){ toast('Erro ao carregar seus dados: '+e.message,true); }
+};
+
+function renderPerfil(app){
+  const d = perfilDados || {};
+  app.innerHTML = `
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+        <div style="width:44px;height:44px;border-radius:50%;background:rgba(255,179,0,.15);border:2px solid rgba(255,179,0,.4);display:flex;align-items:center;justify-content:center;font-size:20px">🏍️</div>
+        <div>
+          <b style="font-size:15px">Meus dados</b>
+          <p style="font-size:11px;color:#8B98A5;margin:0">Edite e salve — vale na hora para os passageiros</p>
+        </div>
+      </div>
+
+      <div class="lbl">Nome completo</div>
+      <input class="inp" id="pfNome" value="${esc(d.nome||'')}" style="margin-bottom:10px"/>
+
+      <div class="grid2" style="margin-bottom:10px">
+        <div><div class="lbl">Telefone (DDD)</div><input class="inp" id="pfTel" type="tel" value="${esc(d.telefone||'')}"/></div>
+        <div><div class="lbl">CNH</div><input class="inp" id="pfCnh" value="${esc(d.cnh||'')}"/></div>
+      </div>
+
+      <div class="lbl">Nova senha (deixe vazio para manter a atual)</div>
+      <input class="inp" id="pfSenha" type="password" placeholder="••••••" style="margin-bottom:12px"/>
+
+      <div style="padding:10px;border-radius:10px;background:rgba(255,179,0,.07);border:1px solid rgba(255,179,0,.3);margin-bottom:12px">
+        <div class="lbl" style="color:#FFB300">🏍️ Dados da moto</div>
+        <div class="grid2" style="margin-bottom:10px">
+          <div><div class="lbl">Placa</div><input class="inp" id="pfPlaca" value="${esc(d.placa||'')}" style="text-transform:uppercase"/></div>
+          <div><div class="lbl">Cor</div><input class="inp" id="pfCor" value="${esc(d.cor||'')}"/></div>
+        </div>
+        <div class="grid2">
+          <div><div class="lbl">Modelo</div><input class="inp" id="pfModelo" value="${esc(d.modelo||'')}"/></div>
+          <div><div class="lbl">Ano</div><input class="inp" id="pfAno" type="number" value="${esc(d.ano||'')}"/></div>
+        </div>
+      </div>
+
+      <div class="lbl">💠 Chave PIX (recebimento das corridas)</div>
+      <input class="inp" id="pfPix" value="${esc(d.pix||'')}" placeholder="Telefone, CPF, e-mail ou chave aleatória" style="margin-bottom:14px"/>
+
+      <button class="btn green" onclick="salvarPerfil()">💾 Salvar alterações</button>
+      <button class="btn ghost" style="margin-top:8px" onclick="voltarFeed()">← Voltar</button>
+    </div>
+  `;
+}
+
+window.voltarFeed = () => { tela='feed'; render(); };
+
+window.salvarPerfil = async () => {
+  if(!sessao || !perfilDados) return;
+  const nome = (document.getElementById('pfNome').value||'').trim();
+  const tel = (document.getElementById('pfTel').value||'').replace(/\D/g,'');
+  const cnh = (document.getElementById('pfCnh').value||'').trim();
+  const senhaNova = document.getElementById('pfSenha').value||'';
+  const placa = (document.getElementById('pfPlaca').value||'').trim().toUpperCase();
+  const cor = (document.getElementById('pfCor').value||'').trim();
+  const modelo = (document.getElementById('pfModelo').value||'').trim();
+  const ano = (document.getElementById('pfAno').value||'').trim();
+  const pix = (document.getElementById('pfPix').value||'').trim();
+
+  if(!nome){ toast('Informe seu nome.',true); return; }
+  if(tel.length < 10){ toast('Telefone inválido (use DDD).',true); return; }
+  if(placa.length < 6){ toast('Placa inválida.',true); return; }
+  if(!modelo){ toast('Informe o modelo da moto.',true); return; }
+  if(senhaNova && senhaNova.length < 4){ toast('Senha nova muito curta.',true); return; }
+
+  try{
+    const todos = await api('/motoqueiros.json','GET') || {};
+    const telDuplicado = Object.values(todos).some(m => m && m.telefone === tel && m.id !== sessao.id);
+    if(telDuplicado){ toast('Este telefone já pertence a outro motoqueiro.',true); return; }
+    const placaDuplicada = Object.values(todos).some(m => m && m.placa === placa && m.id !== sessao.id);
+    if(placaDuplicada){ toast('Esta placa já pertence a outra moto.',true); return; }
+
+    const patch = { nome, telefone:tel, cnh, placa, cor, modelo, ano, pix };
+    if(senhaNova) patch.senhaHash = hash(senhaNova);
+
+    await api('/motoqueiros/'+sessao.id+'.json','PATCH', patch);
+
+    // Atualiza a sessão local
+    const novaSessao = Object.assign({}, sessao, { nome, telefone:tel, placa, modelo, cor, pix });
+    salvarSessao(novaSessao);
+    perfilDados = Object.assign({}, perfilDados, patch);
+
+    beep();
+    toast('✅ Dados atualizados com sucesso!');
+    tela='feed'; render();
+  }catch(e){ toast('Erro ao salvar: '+e.message,true); }
+};
+
+// ===================== PAGAMENTO / MINHA CORRIDA =====================
 function cardPagamentoM(c){
   const pg = c.pagamento || {metodo:null, status:'pendente'};
   const valor = brl(c.valorAceito);
@@ -604,6 +704,7 @@ window.concluirCorrida = async () => {
   }catch(e){ toast('Erro: '+e.message,true); }
 };
 
+// ===================== POLLING =====================
 function iniciarPolling(){
   pararPolling();
   pollTimer = setInterval(tick, window.VDM.pollMs || 4000);
