@@ -44,7 +44,8 @@
   .ccSug{font-size:10px;color:#6B7280;margin-top:6px}
   .statusbox{padding:12px;border-radius:12px;text-align:center;font-weight:800;font-size:13px;margin-bottom:12px;border:1px solid}
   .pCard{display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;background:#0D1218;border:1px solid #1F2937;margin-bottom:12px}
-  .pCard .avatar{width:48px;height:48px;border-radius:50%;background:rgba(0,230,118,.12);border:2px solid rgba(0,230,118,.35);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+  .pCard .avatar{width:48px;height:48px;border-radius:50%;background:rgba(0,230,118,.12);border:2px solid rgba(0,230,118,.35);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;overflow:hidden}
+  .pCard .avatar img{width:100%;height:100%;object-fit:cover}
   .pCard .info{flex:1;min-width:0}
   .pCard .nome{font-weight:800;font-size:14px}
   .pCard .det{font-size:11px;color:#9CA3AF;margin-top:2px}
@@ -63,6 +64,12 @@
   .alertaBox.off{background:rgba(255,179,0,.06);border-color:rgba(255,179,0,.35)}
   .alertaBox .txt{flex:1;font-size:12px;font-weight:700}
   .alertaBox .btn{width:auto;min-height:40px;padding:0 14px;font-size:12px}
+  .fotoBox{display:flex;align-items:center;gap:14px;padding:12px;border-radius:12px;background:#0E1A24;border:1px solid #1F2937;margin-bottom:12px}
+  .fotoBox .foto{width:80px;height:80px;border-radius:50%;background:rgba(255,179,0,.12);border:3px solid rgba(255,179,0,.4);display:flex;align-items:center;justify-content:center;font-size:36px;flex-shrink:0;overflow:hidden;cursor:pointer}
+  .fotoBox .foto img{width:100%;height:100%;object-fit:cover}
+  .fotoBox .info{flex:1}
+  .fotoBox .info b{font-size:13px;color:#FFB300}
+  .fotoBox .info p{font-size:11px;color:#8B98A5;margin-top:2px}
 </style>
 </head>
 <body>
@@ -74,6 +81,7 @@
 
 <div class="wrap" id="app"></div>
 <div id="toast"></div>
+<input type="file" id="inputFoto" accept="image/*" capture="environment" style="display:none"/>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="config.js"></script>
@@ -83,7 +91,7 @@ const KEY_SESSAO = 'vdm_motoqueiro';
 const KEY_ALERTA = 'vdm_alerta_motoqueiro';
 
 let sessao = null;
-let tela = 'login';           // login | feed | minha | perfil
+let tela = 'login';
 let modoLogin = 'entrar';
 let pollTimer = null;
 let bloqueioTimer = null;
@@ -96,8 +104,9 @@ let corridasVistas = {};
 let map = null, mkMoto = null, mkOrig = null, mkDest = null, linha = null;
 let lastPgStatusM = '';
 let perfilDados = null;
+let fotoTemp = null; // base64 da foto sendo editada
 
-// ===================== MODO ALERTA (som com tela apagada) =====================
+// ===================== MODO ALERTA =====================
 let alertaAtivo = localStorage.getItem(KEY_ALERTA) === '1';
 let audioCtx = null;
 let silentSrc = null;
@@ -112,19 +121,16 @@ function beep(){
     o.connect(g); g.connect(audioCtx.destination); o.start(t); o.stop(t+.7);
   }catch(e){}
 }
-
 function garantirAudio(){
   if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
   if(audioCtx.state==='suspended') audioCtx.resume();
   return audioCtx;
 }
-
 function ligarAudioVivo(){
   try{
     garantirAudio();
     if(silentSrc) return;
-    const secs = 2;
-    const buf = audioCtx.createBuffer(1, audioCtx.sampleRate*secs, audioCtx.sampleRate);
+    const buf = audioCtx.createBuffer(1, audioCtx.sampleRate*2, audioCtx.sampleRate);
     const data = buf.getChannelData(0);
     for(let i=0;i<data.length;i++) data[i] = 0;
     silentSrc = audioCtx.createBufferSource();
@@ -137,7 +143,6 @@ function ligarAudioVivo(){
 function desligarAudioVivo(){
   try{ if(silentSrc){ silentSrc.stop(); silentSrc=null; } }catch(e){}
 }
-
 function notificar(titulo, corpo){
   beep();
   try{
@@ -147,7 +152,6 @@ function notificar(titulo, corpo){
     }
   }catch(e){}
 }
-
 async function ativarAlerta(){
   try{
     if('Notification' in window && Notification.permission!=='granted'){
@@ -169,16 +173,31 @@ function desativarAlerta(){
   render();
 }
 window.toggleAlerta = () => { alertaAtivo ? desativarAlerta() : ativarAlerta(); };
+document.addEventListener('touchend', function umaVez(){ if(alertaAtivo) ligarAudioVivo(); document.removeEventListener('touchend', umaVez); }, {once:true});
+document.addEventListener('click', function umaVez2(){ if(alertaAtivo) ligarAudioVivo(); document.removeEventListener('click', umaVez2); }, {once:true});
 
-document.addEventListener('touchend', function umaVez(){
-  if(alertaAtivo) ligarAudioVivo();
-  document.removeEventListener('touchend', umaVez);
-}, {once:true});
-document.addEventListener('click', function umaVez2(){
-  if(alertaAtivo) ligarAudioVivo();
-  document.removeEventListener('click', umaVez2);
-}, {once:true});
-// ===================== FIM MODO ALERTA =====================
+// ===================== FOTO (compressão + base64) =====================
+function comprimirImagem(file, maxPx=400){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let w = img.width, h = img.height;
+        if(w > h){ if(w > maxPx){ h *= maxPx/w; w = maxPx; } }
+        else { if(h > maxPx){ w *= maxPx/h; h = maxPx; } }
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', 0.7));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 
 const esc = s => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function hash(s){let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))>>>0;return'h'+h.toString(36);}
@@ -225,7 +244,7 @@ async function verificarBloqueio(){
       localStorage.removeItem(KEY_SESSAO);
       sessao = null; minhaCorrida = null;
       tela = 'login'; render();
-      toast('🚫 Sua conta foi bloqueada pelo administrador.', true);
+      toast(' Sua conta foi bloqueada pelo administrador.', true);
     }
   }catch(e){}
 }
@@ -275,15 +294,15 @@ function render(){
 
 function botaoAlerta(){
   return alertaAtivo
-    ? `<div class="alertaBox on"><span style="font-size:20px">🔔</span><span class="txt" style="color:#00E676">Modo Alerta ATIVO — toca com tela apagada</span><button class="btn ghost" onclick="toggleAlerta()">🔕 Desligar</button></div>`
-    : `<div class="alertaBox off"><span style="font-size:20px">🔕</span><span class="txt" style="color:#FFB300">Ativar som de corrida com a tela apagada</span><button class="btn amber" onclick="toggleAlerta()">🔔 Ativar</button></div>`;
+    ? `<div class="alertaBox on"><span style="font-size:20px"></span><span class="txt" style="color:#00E676">Modo Alerta ATIVO — toca com tela apagada</span><button class="btn ghost" onclick="toggleAlerta()">🔕 Desligar</button></div>`
+    : `<div class="alertaBox off"><span style="font-size:20px"></span><span class="txt" style="color:#FFB300">Ativar som de corrida com a tela apagada</span><button class="btn amber" onclick="toggleAlerta()">🔔 Ativar</button></div>`;
 }
 
 function renderLogin(app){
   app.innerHTML = `
     <div class="card" style="margin-top:12px">
       <div style="text-align:center;margin-bottom:14px">
-        <div style="font-size:34px">🏍️</div>
+        <div style="font-size:34px">️</div>
         <b style="font-size:15px">Área do Motoqueiro Parceiro</b>
         <p style="font-size:11px;color:#8B98A5;margin-top:3px">Cadastre-se com seus dados e os da sua moto</p>
       </div>
@@ -303,6 +322,7 @@ window.setModo = m => { modoLogin = m; renderLogin(document.getElementById('app'
 function desenharCamposLogin(){
   const box = document.getElementById('camposLogin');
   if(!box) return;
+  fotoTemp = null;
   if(modoLogin==='entrar'){
     box.innerHTML = `
       <div class="lbl">Telefone (com DDD)</div>
@@ -321,6 +341,14 @@ function desenharCamposLogin(){
       </div>
       <div class="lbl">Senha (mín. 4)</div>
       <input class="inp" id="rgSenha" type="password" placeholder="••••••" style="margin-bottom:12px"/>
+      <div class="lbl">📷 Sua foto de perfil (o passageiro vai ver)</div>
+      <div class="fotoBox">
+        <div class="foto" id="fotoPreview" onclick="document.getElementById('inputFoto').click()">📷</div>
+        <div class="info">
+          <b>Toque para adicionar foto</b>
+          <p>JPG/PNG • aparece no app do passageiro</p>
+        </div>
+      </div>
       <div style="padding:10px;border-radius:10px;background:rgba(255,179,0,.07);border:1px solid rgba(255,179,0,.3);margin-bottom:10px">
         <div class="lbl" style="color:#FFB300">🏍️ Dados da moto</div>
         <div class="grid2" style="margin-bottom:10px">
@@ -339,6 +367,23 @@ function desenharCamposLogin(){
     `;
   }
 }
+
+// Handler global para input de foto
+document.getElementById('inputFoto').addEventListener('change', async (e) => {
+  const file = e.target.files && e.target.files[0];
+  if(!file) return;
+  if(!file.type.startsWith('image/')){ toast('Selecione uma imagem.',true); return; }
+  if(file.size > 5*1024*1024){ toast('Imagem muito grande (máx 5MB).',true); return; }
+  toast('⏳ Processando foto...');
+  try{
+    const base64 = await comprimirImagem(file, 400);
+    fotoTemp = base64;
+    const prev = document.getElementById('fotoPreview');
+    if(prev) prev.innerHTML = `<img src="${base64}" alt="Preview"/>`;
+    toast('✅ Foto pronta!');
+  }catch(err){ toast('Erro ao processar imagem.',true); }
+  e.target.value = '';
+});
 
 window.criarConta = async () => {
   const nome = (document.getElementById('rgNome').value||'').trim();
@@ -364,10 +409,11 @@ window.criarConta = async () => {
     await api('/motoqueiros/'+id+'.json','PUT',{
       id, nome, telefone:tel, cnh, senhaHash:hash(senha),
       placa, cor, modelo, ano, pix,
+      foto: fotoTemp || '',
       bloqueado:false, ativo:true,
       criadoEm:new Date().toISOString()
     });
-    salvarSessao({ id, nome, telefone:tel, placa, modelo, cor });
+    salvarSessao({ id, nome, telefone:tel, placa, modelo, cor, foto: fotoTemp || '' });
     beep();
     toast('✅ Cadastro aprovado! Você está online.');
     entrarNoSistema();
@@ -384,7 +430,7 @@ window.fazerLogin = async () => {
     if(!achado){ toast('Conta não encontrada. Faça o cadastro.',true); return; }
     if(achado.senhaHash !== hash(senha)){ toast('Senha incorreta.',true); return; }
     if(achado.bloqueado === true){ toast('🚫 Conta bloqueada pelo administrador.',true); return; }
-    salvarSessao({ id:achado.id, nome:achado.nome, telefone:achado.telefone, placa:achado.placa, modelo:achado.modelo, cor:achado.cor, pix:achado.pix });
+    salvarSessao({ id:achado.id, nome:achado.nome, telefone:achado.telefone, placa:achado.placa, modelo:achado.modelo, cor:achado.cor, foto: achado.foto || '' });
     toast('✅ Online! Boas corridas, '+achado.nome.split(' ')[0]+'!');
     entrarNoSistema();
   }catch(e){ toast('Erro: '+e.message,true); }
@@ -426,7 +472,7 @@ function renderFeed(app){
     <div class="lbl" style="margin:0 0 8px">📡 Pedidos de corrida abertos</div>
     <div id="listaFeed"><div class="state"><div class="big">📡</div>Buscando pedidos...</div></div>
     <button class="btn blue" style="margin-bottom:8px" onclick="abrirPerfil()">⚙️ Meus dados e da moto</button>
-    <button class="btn ghost" onclick="sair()">🚪 Sair / ficar offline</button>
+    <button class="btn ghost" onclick="sair()"> Sair / ficar offline</button>
   `;
 }
 
@@ -434,7 +480,7 @@ function desenharFeed(abertas){
   const lista = document.getElementById('listaFeed');
   if(!lista) return;
   if(abertas.length === 0){
-    lista.innerHTML = '<div class="state"><div class="big">📭</div>Nenhum pedido aberto agora.<br/>Você será avisado com som quando chegar um.</div>';
+    lista.innerHTML = '<div class="state"><div class="big"></div>Nenhum pedido aberto agora.<br/>Você será avisado com som quando chegar um.</div>';
     return;
   }
   lista.innerHTML = abertas.map(c => {
@@ -474,6 +520,7 @@ window.enviarOferta = async (cid) => {
       placa: sessao.placa,
       modelo: sessao.modelo,
       cor: sessao.cor,
+      foto: sessao.foto || '',
       ts: new Date().toISOString()
     });
     beep();
@@ -482,13 +529,14 @@ window.enviarOferta = async (cid) => {
   }catch(e){ toast('Erro: '+e.message,true); }
 };
 
-// ===================== PERFIL / EDITAR MEUS DADOS =====================
+// ===================== PERFIL COM FOTO =====================
 window.abrirPerfil = async () => {
   if(!sessao) return;
   try{
     const m = await api('/motoqueiros/'+sessao.id+'.json','GET');
     if(!m){ toast('Conta não encontrada.',true); return; }
     perfilDados = m;
+    fotoTemp = m.foto || null;
     tela='perfil';
     render();
   }catch(e){ toast('Erro ao carregar seus dados: '+e.message,true); }
@@ -496,6 +544,7 @@ window.abrirPerfil = async () => {
 
 function renderPerfil(app){
   const d = perfilDados || {};
+  const fotoAtual = fotoTemp || d.foto || '';
   app.innerHTML = `
     <div class="card">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
@@ -503,6 +552,18 @@ function renderPerfil(app){
         <div>
           <b style="font-size:15px">Meus dados</b>
           <p style="font-size:11px;color:#8B98A5;margin:0">Edite e salve — vale na hora para os passageiros</p>
+        </div>
+      </div>
+
+      <div class="lbl"> Foto de perfil (o passageiro vê)</div>
+      <div class="fotoBox">
+        <div class="foto" id="fotoPreview" onclick="document.getElementById('inputFoto').click()">
+          ${fotoAtual ? `<img src="${fotoAtual}" alt="Foto"/>` : '📷'}
+        </div>
+        <div class="info">
+          <b>${fotoAtual ? 'Toque para trocar a foto' : 'Toque para adicionar foto'}</b>
+          <p>JPG/PNG • aparece no app do passageiro</p>
+          ${fotoAtual ? `<button class="btn ghost mini" style="margin-top:6px" onclick="removerFoto()">🗑️ Remover foto</button>` : ''}
         </div>
       </div>
 
@@ -529,7 +590,7 @@ function renderPerfil(app){
         </div>
       </div>
 
-      <div class="lbl">💠 Chave PIX (recebimento das corridas)</div>
+      <div class="lbl"> Chave PIX (recebimento das corridas)</div>
       <input class="inp" id="pfPix" value="${esc(d.pix||'')}" placeholder="Telefone, CPF, e-mail ou chave aleatória" style="margin-bottom:14px"/>
 
       <button class="btn green" onclick="salvarPerfil()">💾 Salvar alterações</button>
@@ -538,7 +599,15 @@ function renderPerfil(app){
   `;
 }
 
-window.voltarFeed = () => { tela='feed'; render(); };
+window.removerFoto = () => {
+  if(!confirm('Remover sua foto de perfil?')) return;
+  fotoTemp = '';
+  const prev = document.getElementById('fotoPreview');
+  if(prev) prev.innerHTML = '📷';
+  toast('️ Foto removida. Salve para aplicar.');
+};
+
+window.voltarFeed = () => { tela='feed'; fotoTemp=null; render(); };
 
 window.salvarPerfil = async () => {
   if(!sessao || !perfilDados) return;
@@ -567,13 +636,15 @@ window.salvarPerfil = async () => {
 
     const patch = { nome, telefone:tel, cnh, placa, cor, modelo, ano, pix };
     if(senhaNova) patch.senhaHash = hash(senhaNova);
+    // 🆕 Salva a foto (ou string vazia se foi removida)
+    if(fotoTemp !== null) patch.foto = fotoTemp;
 
     await api('/motoqueiros/'+sessao.id+'.json','PATCH', patch);
 
-    // Atualiza a sessão local
-    const novaSessao = Object.assign({}, sessao, { nome, telefone:tel, placa, modelo, cor, pix });
+    const novaSessao = Object.assign({}, sessao, { nome, telefone:tel, placa, modelo, cor, pix, foto: fotoTemp !== null ? fotoTemp : sessao.foto });
     salvarSessao(novaSessao);
-    perfilDados = Object.assign({}, perfilDados, patch);
+    perfilDados = Object.assign({}, perfilDados, patch, { foto: novaSessao.foto });
+    fotoTemp = null;
 
     beep();
     toast('✅ Dados atualizados com sucesso!');
@@ -585,7 +656,6 @@ window.salvarPerfil = async () => {
 function cardPagamentoM(c){
   const pg = c.pagamento || {metodo:null, status:'pendente'};
   const valor = brl(c.valorAceito);
-
   if(pg.status==='pago'){
     return `<div class="card" style="border-color:rgba(0,230,118,.5);background:rgba(0,230,118,.06)">
       <div class="rowval" style="border:none"><span class="k">🟢 PIX RECEBIDO</span><span class="v" style="color:#00E676">${valor}</span></div>
@@ -624,7 +694,7 @@ window.confirmarPix = async () => {
     const pg = Object.assign({}, minhaCorrida.pagamento || {}, { status:'pago', confirmadoEm:new Date().toISOString() });
     await api('/corridas/'+minhaCorrida.id+'.json','PATCH',{ pagamento:pg });
     beep();
-    toast('🟢 Pagamento confirmado! Corrida liberada.');
+    toast(' Pagamento confirmado! Corrida liberada.');
     ultimaAssinatura='';
   }catch(e){ toast('Erro: '+e.message,true); }
 };
@@ -645,7 +715,7 @@ function renderMinha(app){
       <div class="avatar">🙋</div>
       <div class="info">
         <div class="nome">${esc(c.passageiroNome||'Passageiro')}</div>
-        <div class="det">📞 ${esc(c.passageiroTel||'—')}</div>
+        <div class="det"> ${esc(c.passageiroTel||'—')}</div>
       </div>
       <a class="btn blue" style="width:auto;min-height:40px;padding:0 12px;font-size:12px" href="tel:+55${esc(String(c.passageiroTel||'').replace(/\D/g,''))}">Ligar</a>
     </div>
