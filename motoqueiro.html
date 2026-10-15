@@ -89,6 +89,7 @@ let ultimaAssinatura = '';
 let corridasVistas = {};
 let map = null, mkMoto = null, mkOrig = null, mkDest = null, linha = null;
 let audioCtx = null;
+let lastPgStatusM = '';
 
 const esc = s => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function hash(s){let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))>>>0;return'h'+h.toString(36);}
@@ -119,13 +120,6 @@ async function api(caminho, method, body){
   const r = await fetch(FB + caminho, opts);
   if(!r.ok) throw new Error('HTTP ' + r.status);
   return await r.json();
-}
-
-function distKm(a,b,c,d){
-  const R=6371, tr=x=>x*Math.PI/180;
-  const dLa=tr(c-a), dLo=tr(d-b);
-  const h=Math.sin(dLa/2)**2 + Math.cos(tr(a))*Math.cos(tr(c))*Math.sin(dLo/2)**2;
-  return R*2*Math.atan2(Math.sqrt(h),Math.sqrt(1-h));
 }
 
 function tempoAtras(iso){
@@ -256,6 +250,9 @@ function desenharCamposLogin(){
           <div><div class="lbl">Ano</div><input class="inp" id="rgAno" type="number" placeholder="2022"/></div>
         </div>
       </div>
+      <div class="lbl">💠 Chave PIX (para receber as corridas)</div>
+      <input class="inp" id="rgPix" placeholder="Telefone, CPF, e-mail ou chave aleatória" style="margin-bottom:12px"/>
+      <p style="font-size:10px;color:#6B7280;margin:-6px 0 10px">Sem chave PIX, você só recebe corridas pagas em dinheiro.</p>
       <button class="btn green" onclick="criarConta()">Criar conta de parceiro</button>
     `;
   }
@@ -270,6 +267,7 @@ window.criarConta = async () => {
   const cor = (document.getElementById('rgCor').value||'').trim();
   const modelo = (document.getElementById('rgModelo').value||'').trim();
   const ano = (document.getElementById('rgAno').value||'').trim();
+  const pix = (document.getElementById('rgPix').value||'').trim();
   if(!nome){ toast('Informe seu nome.',true); return; }
   if(tel.length < 10){ toast('Telefone inválido (use DDD).',true); return; }
   if(!cnh){ toast('Informe o número da CNH.',true); return; }
@@ -283,7 +281,7 @@ window.criarConta = async () => {
     const id = 'm' + Date.now();
     await api('/motoqueiros/'+id+'.json','PUT',{
       id, nome, telefone:tel, cnh, senhaHash:hash(senha),
-      placa, cor, modelo, ano,
+      placa, cor, modelo, ano, pix,
       bloqueado:false, ativo:true,
       criadoEm:new Date().toISOString()
     });
@@ -335,7 +333,7 @@ function iniciarVerificacaoBloqueio(){
   bloqueioTimer = setInterval(verificarBloqueio, 15000);
 }
 
-// ===================== FEED DE CORRIDAS ABERTAS =====================
+// ===================== FEED =====================
 function renderFeed(app){
   app.innerHTML = `
     <div class="statusbox" style="color:#00E676;background:rgba(0,230,118,.08);border-color:rgba(0,230,118,.4)">
@@ -395,7 +393,55 @@ window.enviarOferta = async (cid) => {
     });
     beep();
     toast('💰 Oferta de '+brl(valor)+' enviada!');
-    ultimaAssinatura = ''; // força re-render do feed
+    ultimaAssinatura = '';
+  }catch(e){ toast('Erro: '+e.message,true); }
+};
+
+// ===================== CARD DE PAGAMENTO (MOTOQUEIRO) =====================
+function cardPagamentoM(c){
+  const pg = c.pagamento || {metodo:null, status:'pendente'};
+  const valor = brl(c.valorAceito);
+
+  if(pg.status==='pago'){
+    return `<div class="card" style="border-color:rgba(0,230,118,.5);background:rgba(0,230,118,.06)">
+      <div class="rowval" style="border:none"><span class="k">🟢 PIX RECEBIDO</span><span class="v" style="color:#00E676">${valor}</span></div>
+      <p style="font-size:11px;color:#9CA3AF;margin-top:4px">Pagamento confirmado. Pode rodar tranquilo!</p>
+    </div>`;
+  }
+  if(pg.metodo==='dinheiro'){
+    return `<div class="card">
+      <div class="rowval" style="border:none"><span class="k">💵 Receberá em dinheiro</span><span class="v">${valor}</span></div>
+      <p style="font-size:11px;color:#9CA3AF;margin-top:4px">Cobre do passageiro durante ou ao final da corrida.</p>
+    </div>`;
+  }
+  if(pg.status==='pix_informado'){
+    return `<div class="card" style="border-color:rgba(59,130,246,.5)">
+      <div class="lbl" style="color:#3B82F6">🔵 Passageiro informou que pagou — ${valor}</div>
+      <p style="font-size:11px;color:#9CA3AF;margin:4px 0 10px">Confira seu app do banco. Se o PIX caiu, confirme abaixo para liberar a corrida.</p>
+      <button class="btn green" onclick="confirmarPix()">💰 Confirmar recebimento do PIX</button>
+    </div>`;
+  }
+  if(pg.metodo==='pix'){
+    return `<div class="card">
+      <div class="rowval" style="border:none"><span class="k">💠 Passageiro vai pagar via PIX</span><span class="v">${valor}</span></div>
+      <p style="font-size:11px;color:#9CA3AF;margin-top:4px">O valor cairá na sua chave: <b style="color:#E6EDF3">${esc(sessao.pix||'(não cadastrada)')}</b></p>
+    </div>`;
+  }
+  return `<div class="card">
+    <div class="rowval" style="border:none"><span class="k">⏳ Pagamento</span><span class="v">Aguardando passageiro</span></div>
+    <p style="font-size:11px;color:#9CA3AF;margin-top:4px">O passageiro ainda vai escolher PIX ou dinheiro. Você só inicia após o pagamento estar ok.</p>
+  </div>`;
+}
+
+window.confirmarPix = async () => {
+  if(!minhaCorrida) return;
+  if(!confirm('O PIX realmente caiu na sua conta? Confirme para liberar a corrida.')) return;
+  try{
+    const pg = Object.assign({}, minhaCorrida.pagamento || {}, { status:'pago', confirmadoEm:new Date().toISOString() });
+    await api('/corridas/'+minhaCorrida.id+'.json','PATCH',{ pagamento:pg });
+    beep();
+    toast('🟢 Pagamento confirmado! Corrida liberada.');
+    ultimaAssinatura='';
   }catch(e){ toast('Erro: '+e.message,true); }
 };
 
@@ -404,6 +450,8 @@ function renderMinha(app){
   const c = minhaCorrida;
   if(!c){ tela='feed'; return renderFeed(app); }
   const emRota = c.status === 'em_rota';
+  const pg = c.pagamento || {metodo:null, status:'pendente'};
+  const pagoOk = pg.status==='pago' || pg.metodo==='dinheiro';
   app.innerHTML = `
     <div class="statusbox" style="${emRota ? 'color:#00E676;background:rgba(0,230,118,.08);border-color:rgba(0,230,118,.4)' : 'color:#3B82F6;background:rgba(59,130,246,.08);border-color:rgba(59,130,246,.4)'}">
       ${emRota ? '🛵 CORRIDA EM ANDAMENTO — GPS transmitindo' : '✅ CORRIDA ACEITA — vá buscar o passageiro'}
@@ -417,6 +465,7 @@ function renderMinha(app){
       </div>
       <a class="btn blue" style="width:auto;min-height:40px;padding:0 12px;font-size:12px" href="tel:+55${esc(String(c.passageiroTel||'').replace(/\D/g,''))}">Ligar</a>
     </div>
+    ${cardPagamentoM(c)}
     <div class="card">
       <div class="rowval"><span class="k">📍 Buscar em</span><span class="v" style="max-width:62%;text-align:right;font-weight:500;font-size:11px">${esc(c.origEndereco||'—')}</span></div>
       <div class="rowval"><span class="k">🏁 Levar até</span><span class="v" style="max-width:62%;text-align:right;font-weight:500;font-size:11px">${esc(c.destEndereco||'—')}</span></div>
@@ -424,9 +473,11 @@ function renderMinha(app){
     </div>
     <a class="btn blue" style="margin-bottom:10px" target="_blank" rel="noopener"
        href="https://www.google.com/maps/search/?api=1&query=${c.origLat},${c.origLng}">🗺️ Navegar até o passageiro (Google Maps)</a>
-    ${!emRota ? `
+    ${!emRota ? (pagoOk ? `
       <button class="btn green" onclick="iniciarCorrida()">🛵 INICIAR CORRIDA (passageiro a bordo)</button>
     ` : `
+      <button class="btn ghost" disabled>⏳ Aguardando pagamento do passageiro</button>
+    `) : `
       <button class="btn amber" onclick="concluirCorrida()">🏁 CONCLUIR CORRIDA</button>
     `}
   `;
@@ -458,7 +509,7 @@ window.iniciarCorrida = async () => {
 
 window.concluirCorrida = async () => {
   if(!minhaCorrida) return;
-  if(!confirm('Concluir a corrida e cobrar '+brl(minhaCorrida.valorAceito)+' do passageiro?')) return;
+  if(!confirm('Concluir a corrida de '+brl(minhaCorrida.valorAceito)+'?')) return;
   try{
     await api('/corridas/'+minhaCorrida.id+'.json','PATCH',{ status:'concluida', concluidaEm:new Date().toISOString() });
     pararTransmissao();
@@ -483,11 +534,16 @@ async function tick(){
     const todas = await api('/corridas.json','GET') || {};
     const lista = Object.entries(todas).map(([id,c])=>({ id, ...c }));
 
-    // Minha corrida ativa?
     const minha = lista.find(c => (c.status==='aceita' || c.status==='em_rota') && c.motoqueiroId === sessao.id);
 
     if(minha){
-      const mudou = !minhaCorrida || minhaCorrida.status !== minha.status;
+      const pgSt = (minha.pagamento && minha.pagamento.status) || 'pendente';
+      const mudou = !minhaCorrida || minhaCorrida.status !== minha.status || pgSt !== lastPgStatusM;
+      if(pgSt==='pix_informado' && lastPgStatusM!=='pix_informado'){
+        beep();
+        toast('🔵 Passageiro informou que pagou o PIX — confirme o recebimento!');
+      }
+      lastPgStatusM = pgSt;
       minhaCorrida = minha;
       if(tela !== 'minha'){
         tela='minha'; render(); beep();
@@ -500,20 +556,18 @@ async function tick(){
       return;
     }
 
-    // Se estava em corrida e ela sumiu (concluída/cancelada por fora)
     if(minhaCorrida && !minha){
       minhaCorrida = null;
       pararTransmissao();
+      lastPgStatusM = '';
       if(tela==='minha'){ tela='feed'; render(); toast('Corrida encerrada.'); }
     }
 
     if(tela !== 'feed') return;
 
-    // Feed: só abertas
     const abertas = lista.filter(c => c.status==='aberta');
     abertas.sort((a,b)=> new Date(b.criadaEm) - new Date(a.criadaEm));
 
-    // Beep para pedido NOVO
     abertas.forEach(c => {
       if(!corridasVistas[c.id]){
         corridasVistas[c.id] = true;
@@ -522,7 +576,6 @@ async function tick(){
       }
     });
 
-    // Assinatura p/ não re-renderizar e perder o que foi digitado
     const sig = abertas.map(c => c.id + '|' + (c.ofertas && c.ofertas[sessao.id] ? c.ofertas[sessao.id].valor : '-')).join(',');
     if(sig !== ultimaAssinatura){
       ultimaAssinatura = sig;
