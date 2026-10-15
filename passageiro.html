@@ -22,6 +22,7 @@
   .btn:active{transform:scale(.98)}
   .btn.amber{background:linear-gradient(135deg,#FFB300,#FF8F00);color:#1a1408}
   .btn.green{background:linear-gradient(135deg,#00E676,#00B25A);color:#04140B}
+  .btn.blue{background:linear-gradient(135deg,#3B82F6,#2563EB)}
   .btn.red{background:linear-gradient(135deg,#EF4444,#DC2626)}
   .btn.ghost{background:transparent;border:1px solid #2A3542;color:#9CA3AF}
   .btn:disabled{opacity:.5;cursor:not-allowed}
@@ -65,22 +66,25 @@
 <div id="toast"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <script src="config.js"></script>
 <script>
 const FB = window.VDM.firebaseURL;
 const KEY_SESSAO = 'vdm_passageiro';
 
 let sessao = null;
-let tela = 'login';           // login | home | ofertas | andamento | fim
+let tela = 'login';
 let modoLogin = 'entrar';
-let gps = null;               // {lat,lng}
+let gps = null;
 let watchId = null;
-let corridaAtual = null;      // objeto da corrida
-let ofertasVistas = {};       // mid -> true (p/ beep de nova oferta)
+let corridaAtual = null;
+let ofertasVistas = {};
 let pollTimer = null;
 let map = null, mkEu = null, mkMoto = null, mkDest = null, linha = null;
 let destinoTexto = '';
 let audioCtx = null;
+let motoDados = null;
+let lastPgStatus = '';
 
 const esc = s => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function hash(s){let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))>>>0;return'h'+h.toString(36);}
@@ -141,6 +145,38 @@ function atualizarChip(){
   const chip = document.getElementById('userchip');
   if(sessao){ chip.style.display='block'; chip.textContent = '👤 ' + sessao.nome; }
   else chip.style.display='none';
+}
+
+function copiarTexto(t){
+  if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(t); return; }
+  const ta = document.createElement('textarea');
+  ta.value = t; document.body.appendChild(ta); ta.select();
+  try{ document.execCommand('copy'); }catch(e){}
+  ta.remove();
+}
+
+// ===================== PIX (BR Code / copia-e-cola) =====================
+function crc16(str){
+  let crc = 0xFFFF;
+  for(let i=0;i<str.length;i++){
+    crc ^= str.charCodeAt(i) << 8;
+    for(let j=0;j<8;j++){ crc = (crc & 0x8000) ? ((crc<<1)^0x1021)&0xFFFF : (crc<<1)&0xFFFF; }
+  }
+  return crc.toString(16).toUpperCase().padStart(4,'0');
+}
+function emv(id, value){ return id + String(value.length).padStart(2,'0') + value; }
+function gerarPixCopiaECola(chave, nome, cidade, valor){
+  const norm = s => String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9 ]/g,'').trim();
+  const nomeN = (norm(nome)||'RECEBEDOR').slice(0,25);
+  const cidN  = (norm(cidade)||'BRASIL').slice(0,15);
+  const valN  = (parseFloat(valor)||0).toFixed(2);
+  const gui   = emv('00','br.gov.bcb.pix') + emv('01', String(chave));
+  let payload = emv('00','01') + emv('26',gui) + emv('52','0000') + emv('53','986')
+              + (parseFloat(valN)>0 ? emv('54',valN) : '')
+              + emv('58','BR') + emv('59',nomeN) + emv('60',cidN)
+              + emv('62', emv('05','***'));
+  payload += '6304';
+  return payload + crc16(payload);
 }
 
 // ===================== GPS =====================
@@ -353,6 +389,86 @@ window.cancelarCorrida = async () => {
   }catch(e){ toast('Erro: '+e.message,true); }
 };
 
+// ===================== CARD DE PAGAMENTO (PASSAGEIRO) =====================
+function cardPagamento(c){
+  const pg = c.pagamento || {metodo:null, status:'pendente'};
+  const valor = brl(c.valorAceito);
+
+  if(pg.status==='pago'){
+    return `<div class="card" style="border-color:rgba(0,230,118,.5);background:rgba(0,230,118,.06)">
+      <div class="rowval" style="border:none"><span class="k">🟢 PIX PAGO</span><span class="v" style="color:#00E676">${valor}</span></div>
+      <p style="font-size:11px;color:#9CA3AF;margin-top:4px">Pagamento confirmado pelo motoqueiro. Boa viagem!</p>
+    </div>`;
+  }
+  if(pg.metodo==='dinheiro'){
+    return `<div class="card">
+      <div class="rowval" style="border:none"><span class="k">💵 Dinheiro na corrida</span><span class="v">${valor}</span></div>
+      <p style="font-size:11px;color:#9CA3AF;margin-top:4px">Combine direto com o motoqueiro no embarque.</p>
+    </div>`;
+  }
+  if(pg.status==='pix_informado'){
+    return `<div class="card" style="border-color:rgba(59,130,246,.5)">
+      <div class="rowval" style="border:none"><span class="k">🔵 Pagamento informado</span><span class="v">${valor}</span></div>
+      <p style="font-size:11px;color:#9CA3AF;margin-top:4px">Aguardando o motoqueiro confirmar o recebimento para liberar a corrida.</p>
+    </div>`;
+  }
+  if(pg.metodo==='pix'){
+    const temChave = motoDados && motoDados.pix;
+    return `<div class="card" style="border-color:rgba(255,179,0,.5)">
+      <div class="lbl" style="color:#FFB300">💠 Pagamento PIX — ${valor}</div>
+      ${temChave ? `
+        <div style="text-align:center;margin:6px 0 10px">
+          <img id="pixQr" alt="QR Code PIX" style="width:180px;height:180px;border-radius:12px;background:#fff;padding:6px;display:none"/>
+        </div>
+        <div class="lbl">Chave PIX do motoqueiro</div>
+        <div style="display:flex;gap:8px;margin-bottom:10px">
+          <input class="inp" id="pixKey" readonly value="${esc(motoDados.pix)}" style="flex:1;font-size:12px"/>
+          <button class="btn blue" style="width:auto;min-height:46px;padding:0 14px;font-size:12px" onclick="copiarPix()">Copiar</button>
+        </div>
+        <button class="btn green" onclick="jaPagueiPix()">✅ Já paguei — avisar o motoqueiro</button>
+        <p style="font-size:10px;color:#6B7280;margin-top:8px;text-align:center">Pague o valor exato no app do seu banco (QR Code ou PIX copia-e-cola). A corrida libera após a confirmação.</p>
+      ` : `
+        <p style="font-size:12px;color:#F59E0B;margin-bottom:10px">Este motoqueiro ainda não cadastrou chave PIX. Combine o pagamento diretamente ou escolha dinheiro.</p>
+        <button class="btn ghost" onclick="escolherDinheiro()">💵 Combinar dinheiro na corrida</button>
+      `}
+    </div>`;
+  }
+  return `<div class="card">
+    <div class="lbl">💰 Pagamento da corrida — ${valor}</div>
+    <button class="btn amber" style="margin-bottom:8px" onclick="escolherPix()">💠 Pagar com PIX agora</button>
+    <button class="btn ghost" onclick="escolherDinheiro()">💵 Pagarei em dinheiro na corrida</button>
+    <p style="font-size:10px;color:#6B7280;margin-top:8px;text-align:center">O motoqueiro só inicia a corrida após o pagamento estar combinado ou confirmado.</p>
+  </div>`;
+}
+
+window.escolherPix = async () => { await patchPagamento({metodo:'pix', status:'pendente'}); toast('💠 PIX selecionado.'); };
+window.escolherDinheiro = async () => { await patchPagamento({metodo:'dinheiro', status:'dinheiro'}); toast('💵 Dinheiro combinado para a corrida.'); };
+window.jaPagueiPix = async () => {
+  await patchPagamento({metodo:'pix', status:'pix_informado', informadoEm:new Date().toISOString()});
+  toast('🔵 Motoqueiro avisado do pagamento.');
+};
+window.copiarPix = () => { copiarTexto((motoDados && motoDados.pix) || ''); toast('📋 Chave PIX copiada!'); };
+
+async function patchPagamento(pg){
+  if(!corridaAtual) return;
+  try{
+    await api('/corridas/'+corridaAtual.id+'.json','PATCH',{ pagamento:pg });
+    corridaAtual.pagamento = pg;
+    lastPgStatus = pg.status;
+    render(); iniciarPolling();
+  }catch(e){ toast('Erro: '+e.message,true); }
+}
+
+function desenharPixQr(){
+  const pg = (corridaAtual && corridaAtual.pagamento) || {};
+  if(pg.metodo!=='pix' || pg.status!=='pendente') return;
+  if(!motoDados || !motoDados.pix || !window.QRCode) return;
+  const payload = gerarPixCopiaECola(motoDados.pix, motoDados.nome, 'BRASIL', corridaAtual.valorAceito);
+  QRCode.toDataURL(payload,{width:360,margin:1,color:{dark:'#000000',light:'#ffffff'}})
+    .then(u=>{ const img=document.getElementById('pixQr'); if(img){ img.src=u; img.style.display='inline-block'; } })
+    .catch(()=>{});
+}
+
 function renderAndamento(app){
   const c = corridaAtual;
   app.innerHTML = `
@@ -367,6 +483,7 @@ function renderAndamento(app){
       </div>
       <a id="mcLigar" class="btn ghost" style="width:auto;min-height:40px;padding:0 12px;font-size:12px;text-decoration:none" href="#">📞</a>
     </div>
+    ${cardPagamento(c)}
     <div class="card">
       <div class="rowval"><span class="k">💰 Valor combinado</span><span class="v" style="color:#00E676">${brl(c.valorAceito)}</span></div>
       <div class="rowval"><span class="k">🏁 Destino</span><span class="v" style="max-width:60%;text-align:right;font-weight:500;font-size:12px">${esc(c.destEndereco)}</span></div>
@@ -374,11 +491,14 @@ function renderAndamento(app){
   `;
   iniciarMapaCorrida();
   carregarDadosMotoqueiro();
+  desenharPixQr();
 }
 
 function renderFim(app){
   const c = corridaAtual;
   const concluida = c && c.status==='concluida';
+  const pg = (c && c.pagamento) || {};
+  const pgTxt = pg.status==='pago' ? 'PIX pago ✅' : pg.metodo==='dinheiro' ? 'Dinheiro na corrida' : pg.status==='pix_informado' ? 'PIX informado' : '—';
   app.innerHTML = `
     <div class="card state">
       <div class="big">${concluida?'✅':'❌'}</div>
@@ -388,13 +508,13 @@ function renderFim(app){
     ${c?`<div class="card">
       <div class="rowval"><span class="k">Motoqueiro</span><span class="v">${esc(c.motoqueiroNome||'—')}</span></div>
       <div class="rowval"><span class="k">Valor</span><span class="v" style="color:#00E676">${brl(c.valorAceito)}</span></div>
-      <div class="rowval"><span class="k">Pagamento</span><span class="v">Direto ao motoqueiro (dinheiro/Pix)</span></div>
+      <div class="rowval"><span class="k">Pagamento</span><span class="v">${pgTxt}</span></div>
     </div>`:''}
     <button class="btn amber" onclick="novaCorrida()">🏍️ PEDIR NOVA CORRIDA</button>
   `;
 }
 
-window.novaCorrida = () => { corridaAtual=null; destinoTexto=''; tela='home'; ativarGPS(); render(); };
+window.novaCorrida = () => { corridaAtual=null; destinoTexto=''; motoDados=null; lastPgStatus=''; tela='home'; ativarGPS(); render(); };
 
 function iniciarMapaCorrida(){
   const el = document.getElementById('mapaCorrida');
@@ -412,12 +532,14 @@ async function carregarDadosMotoqueiro(){
   try{
     const m = await api('/motoqueiros/'+corridaAtual.motoqueiroId+'.json','GET');
     if(!m) return;
+    motoDados = m;
     const elMoto = document.getElementById('mcMoto');
     const elTel = document.getElementById('mcTel');
     const elLig = document.getElementById('mcLigar');
     if(elMoto) elMoto.textContent = '🏍️ ' + [m.modelo,m.cor,m.placa].filter(Boolean).join(' • ');
     if(elTel) elTel.textContent = '🪪 ' + (m.nome||'');
     if(elLig && m.telefone) elLig.href = 'tel:+55'+m.telefone;
+    desenharPixQr();
   }catch(e){}
 }
 
@@ -437,11 +559,12 @@ async function tick(){
 
     if(tela==='ofertas'){
       if(c.status==='aceita' || c.status==='em_rota'){
-        corridaAtual = c; beep(); toast('✅ Oferta aceita! Acompanhe a corrida.');
+        corridaAtual = c;
+        lastPgStatus = (c.pagamento && c.pagamento.status) || 'pendente';
+        beep(); toast('✅ Oferta aceita! Combine o pagamento e acompanhe a corrida.');
         tela='andamento'; render(); iniciarPolling(); return;
       }
       if(c.status==='cancelada'){ toast('Corrida cancelada.',true); corridaAtual=null; tela='home'; render(); return; }
-      // renderiza ofertas
       const ofs = c.ofertas ? Object.entries(c.ofertas).map(([mid,o])=>({mid,...o})) : [];
       ofs.sort((a,b)=>(parseFloat(a.valor)||0)-(parseFloat(b.valor)||0));
       const lista = document.getElementById('listaOfertas');
@@ -459,22 +582,30 @@ async function tick(){
               <button class="btn green" onclick="aceitarOferta('${esc(o.mid)}', ${parseFloat(o.valor)||0})">Aceitar</button>
             </div>
           `).join('');
-          // beep para oferta nova
           ofs.forEach(o=>{ if(!ofertasVistas[o.mid]){ ofertasVistas[o.mid]=true; beep(); } });
         }
       }
     }
 
     if(tela==='andamento'){
+      const prevStatus = corridaAtual.status;
+      const prevPg = (corridaAtual.pagamento && corridaAtual.pagamento.status) || 'pendente';
       corridaAtual = c;
+      const stPg = (c.pagamento && c.pagamento.status) || 'pendente';
+
+      if(c.status==='concluida'){ beep(); tela='fim'; render(); return; }
+      if(c.status==='cancelada'){ toast('Corrida cancelada.',true); tela='fim'; render(); return; }
+
+      if(c.status!==prevStatus || stPg!==prevPg){
+        if(stPg==='pago' && prevPg!=='pago'){ beep(); toast('🟢 Pagamento confirmado pelo motoqueiro!'); }
+        render(); iniciarPolling(); return;
+      }
+
       const st = document.getElementById('stBox');
       if(st){
         if(c.status==='aceita'){ st.style.color='#3B82F6'; st.style.background='rgba(59,130,246,.08)'; st.style.borderColor='rgba(59,130,246,.4)'; st.textContent='🏍️ '+ (c.motoqueiroNome||'Motoqueiro') +' a caminho do seu local...'; }
         if(c.status==='em_rota'){ st.style.color='#00E676'; st.style.background='rgba(0,230,118,.08)'; st.style.borderColor='rgba(0,230,118,.4)'; st.textContent='🛵 Em corrida para o destino...'; }
       }
-      if(c.status==='concluida'){ beep(); tela='fim'; render(); return; }
-      if(c.status==='cancelada'){ toast('Corrida cancelada.',true); tela='fim'; render(); return; }
-      // posição do motoqueiro
       try{
         const pos = await api('/posicoes/'+c.id+'.json','GET');
         if(pos && pos.lat && map){
@@ -501,10 +632,11 @@ window.aceitarOferta = async (mid, valor) => {
       motoqueiroId: mid,
       motoqueiroNome: (m && m.nome) || 'Motoqueiro',
       valorAceito: valor,
+      pagamento: { metodo:null, status:'pendente' },
       aceitaEm: new Date().toISOString()
     });
     beep();
-    toast('✅ Oferta aceita! Os demais motoqueiros não veem mais esta corrida.');
+    toast('✅ Oferta aceita! Agora escolha a forma de pagamento.');
   }catch(e){ toast('Erro: '+e.message,true); }
 };
 
