@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="theme-color" content="#FFB300"/>
+<title>VAI DE MOTO — Painel do Administrador</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  body{background:#0B0F14;color:#E6EDF3;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;line-height:1.5;min-height:100vh}
+  .topo{position:fixed;top:0;left:0;right:0;height:54px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;background:rgba(11,15,20,.97);border-bottom:1px solid rgba(255,179,0,.35);z-index:50}
+  .logo{font-size:15px;font-weight:900}
+  .logo span{color:#FFB300}
+  .chip{font-size:11px;color:#FFB300;background:rgba(255,179,0,.1);border:1px solid rgba(255,179,0,.4);padding:5px 10px;border-radius:999px}
+  .wrap{max-width:980px;margin:0 auto;padding:66px 14px 30px}
+  .card{background:#10161D;border:1px solid #1F2937;border-radius:14px;padding:16px;margin-bottom:12px}
+  .lbl{font-size:10px;color:#8B98A5;text-transform:uppercase;letter-spacing:.8px;margin:0 0 5px;font-weight:700}
+  .inp{width:100%;padding:11px 12px;border-radius:10px;border:1px solid #2A3542;background:#0D1218;color:#E6EDF3;font-size:14px;outline:none;font-family:inherit}
+  .inp:focus{border-color:#FFB300}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:42px;padding:0 14px;border-radius:10px;border:none;font-weight:800;font-size:12px;cursor:pointer;font-family:inherit;color:#fff;text-decoration:none}
+  .btn:active{transform:scale(.98)}
+  .btn.amber{background:linear-gradient(135deg,#FFB300,#FF8F00);color:#1a1408}
+  .btn.green{background:linear-gradient(135deg,#00E676,#00B25A);color:#04140B}
+  .btn.blue{background:linear-gradient(135deg,#3B82F6,#2563EB)}
+  .btn.red{background:linear-gradient(135deg,#EF4444,#DC2626)}
+  .btn.ghost{background:transparent;border:1px solid #2A3542;color:#9CA3AF}
+  .btn.mini{min-height:32px;padding:0 10px;font-size:11px;border-radius:8px}
+  .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+  .tab{padding:9px 14px;border-radius:10px;border:1px solid #2A3542;background:transparent;color:#9CA3AF;font-weight:800;font-size:12px;cursor:pointer;font-family:inherit}
+  .tab.on{background:rgba(255,179,0,.12);border-color:#FFB300;color:#FFB300}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px}
+  .stat{background:#10161D;border:1px solid #1F2937;border-radius:12px;padding:12px}
+  .stat .n{font-size:22px;font-weight:900}
+  .stat .l{font-size:10px;color:#8B98A5;text-transform:uppercase;letter-spacing:.6px;font-weight:700;margin-top:2px}
+  .item{background:#10161D;border:1px solid #1F2937;border-radius:12px;padding:12px;margin-bottom:10px}
+  .item .head{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
+  .item .nome{font-weight:800;font-size:14px}
+  .item .sub{font-size:11px;color:#9CA3AF;margin-top:2px;word-wrap:break-word}
+  .badge{padding:3px 9px;border-radius:999px;font-size:10px;font-weight:800;border:1px solid}
+  .b-ok{color:#00E676;border-color:rgba(0,230,118,.4);background:rgba(0,230,118,.1)}
+  .b-blq{color:#EF4444;border-color:rgba(239,68,68,.4);background:rgba(239,68,68,.1)}
+  .b-ab{color:#FACC15;border-color:rgba(250,204,21,.4);background:rgba(250,204,21,.1)}
+  .b-ac{color:#3B82F6;border-color:rgba(59,130,246,.4);background:rgba(59,130,246,.1)}
+  .b-rota{color:#00E676;border-color:rgba(0,230,118,.4);background:rgba(0,230,118,.1)}
+  .b-fim{color:#9CA3AF;border-color:rgba(156,163,175,.4);background:rgba(156,163,175,.1)}
+  .acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th{color:#8B98A5;text-transform:uppercase;font-size:10px;letter-spacing:.6px;text-align:left;padding:8px 6px;border-bottom:1px solid #1F2937}
+  td{padding:8px 6px;border-bottom:1px dashed rgba(255,255,255,.06);vertical-align:top}
+  #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#FFB300;color:#1a1408;font-weight:800;font-size:12px;padding:11px 18px;border-radius:999px;opacity:0;transition:opacity .3s;z-index:999;max-width:90vw;text-align:center;pointer-events:none}
+  #toast.show{opacity:1}
+  #toast.err{background:#EF4444;color:#fff}
+  @media(max-width:560px){.grid2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div class="topo">
+  <div class="logo">🏍️ VAI DE <span>MOTO</span> • 👑 ADMIN</div>
+  <div class="chip" id="adminchip" style="display:none"></div>
+</div>
+
+<div class="wrap" id="app"></div>
+<div id="toast"></div>
+
+<script src="config.js"></script>
+<script>
+const FB = window.VDM.firebaseURL;
+const KEY_ADMIN = 'vdm_admin';
+
+let sessao = null;
+let tab = 'dash';
+let P = {}, M = {}, C = {};
+let buscaP = '', buscaM = '';
+let filtroStatus = 'todas', filtroPeriodo = '30';
+let editando = null;
+let pollTimer = null;
+
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function hash(s){let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))>>>0;return'h'+h.toString(36);}
+const brl = v => 'R$ ' + (parseFloat(v)||0).toFixed(2).replace('.',',');
+const dataFmt = iso => iso ? new Date(iso).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}) : '—';
+const dataHoraFmt = iso => iso ? new Date(iso).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
+
+function toast(msg,err){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show' + (err?' err':'');
+  setTimeout(()=>t.className='', 3000);
+}
+
+async function api(caminho, method, body){
+  const opts = { method, headers:{'Content-Type':'application/json'} };
+  if(body) opts.body = JSON.stringify(body);
+  const r = await fetch(FB + caminho, opts);
+  if(!r.ok) throw new Error('HTTP ' + r.status);
+  return await r.json();
+}
+
+function salvarSessao(u){ sessao=u; localStorage.setItem(KEY_ADMIN, JSON.stringify(u)); }
+function carregarSessao(){ try{ return JSON.parse(localStorage.getItem(KEY_ADMIN)); }catch(e){ return null; } }
+
+const ST = {
+  aberta:    { lbl:'ABERTA',      cls:'b-ab'  },
+  aceita:    { lbl:'ACEITA',      cls:'b-ac'  },
+  em_rota:   { lbl:'EM ROTA',     cls:'b-rota'},
+  concluida: { lbl:'CONCLUÍDA',   cls:'b-fim' },
+  cancelada: { lbl:'CANCELADA',   cls:'b-blq' }
+};
+const badgeSt = s => { const x = ST[s]||ST.aberta; return `<span class="badge ${x.cls}">${x.lbl}</span>`; };
+
+// ===================== LOGIN / PRIMEIRO ACESSO =====================
+async function renderLogin(){
+  const app = document.getElementById('app');
+  let admins = null;
+  try{ admins = await api('/admins.json','GET'); }catch(e){}
+  const primeiro = !admins || Object.keys(admins).length === 0;
+
+  if(primeiro){
+    app.innerHTML = `
+      <div class="card" style="max-width:420px;margin:30px auto">
+        <div style="text-align:center;margin-bottom:14px">
+          <div style="font-size:38px">👑</div>
+          <b style="font-size:16px">Primeiro acesso do Administrador</b>
+          <p style="font-size:11px;color:#8B98A5;margin-top:4px">Crie seu usuário mestre do VAI DE MOTO</p>
+        </div>
+        <div class="lbl">Seu nome</div>
+        <input class="inp" id="aNome" placeholder="Ex: Washington" style="margin-bottom:10px"/>
+        <div class="lbl">Usuário de login</div>
+        <input class="inp" id="aUser" placeholder="ex: admin" style="margin-bottom:10px"/>
+        <div class="lbl">Senha (mín. 6)</div>
+        <input class="inp" id="aSenha" type="password" placeholder="••••••" style="margin-bottom:14px"/>
+        <button class="btn amber" style="width:100%" onclick="criarAdmin()">👑 Criar acesso de administrador</button>
+      </div>`;
+    return;
+  }
+
+  app.innerHTML = `
+    <div class="card" style="max-width:420px;margin:30px auto">
+      <div style="text-align:center;margin-bottom:14px">
+        <div style="font-size:38px">🔐</div>
+        <b style="font-size:16px">Painel do Administrador</b>
+      </div>
+      <div class="lbl">Usuário</div>
+      <input class="inp" id="lUser" placeholder="admin" style="margin-bottom:10px"/>
+      <div class="lbl">Senha</div>
+      <input class="inp" id="lSenha" type="password" placeholder="••••••" style="margin-bottom:14px"/>
+      <button class="btn amber" style="width:100%" onclick="logarAdmin()">Entrar no painel</button>
+    </div>`;
+}
+
+window.criarAdmin = async () => {
+  const nome = (document.getElementById('aNome').value||'').trim();
+  const user = (document.getElementById('aUser').value||'').trim().toLowerCase();
+  const senha = document.getElementById('aSenha').value||'';
+  if(!nome || !user){ toast('Preencha nome e usuário.',true); return; }
+  if(senha.length < 6){ toast('Senha mín. 6 caracteres.',true); return; }
+  const id = 'adm-' + Date.now();
+  await api('/admins/'+id+'.json','PUT',{ id, nome, usuario:user, senhaHash:hash(senha), criadoEm:new Date().toISOString() });
+  salvarSessao({ id, nome, usuario:user });
+  toast('👑 Admin criado! Bem-vindo.');
+  iniciarPainel();
+};
+
+window.logarAdmin = async () => {
+  const user = (document.getElementById('lUser').value||'').trim().toLowerCase();
+  const senha = document.getElementById('lSenha').value||'';
+  const admins = await api('/admins.json','GET') || {};
+  const achado = Object.values(admins).find(a => a && a.usuario === user);
+  if(!achado){ toast('Usuário não encontrado.',true); return; }
+  if(achado.senhaHash !== hash(senha)){ toast('Senha incorreta.',true); return; }
+  salvarSessao({ id:achado.id, nome:achado.nome, usuario:achado.usuario });
+  toast('👑 Bem-vindo, '+achado.nome+'!');
+  iniciarPainel();
+};
+
+window.sairAdmin = () => {
+  localStorage.removeItem(KEY_ADMIN);
+  sessao=null;
+  if(pollTimer){ clearInterval(pollTimer); pollTimer=null; }
+  document.getElementById('adminchip').style.display='none';
+  renderLogin();
+};
+
+// ===================== CARGA DE DADOS =====================
+async function loadAll(){
+  try{
+    const [p,m,c] = await Promise.all([
+      api('/passageiros.json','GET'),
+      api('/motoqueiros.json','GET'),
+      api('/corridas.json','GET')
+    ]);
+    P = p||{}; M = m||{}; C = c||{};
+  }catch(e){}
+}
+
+function listaCorridas(){ return Object.entries(C).map(([id,c])=>({id,...c})); }
+function listaPass(){ return Object.entries(P).map(([id,p])=>({id,...p})); }
+function listaMoto(){ return Object.entries(M).map(([id,m])=>({id,...m})); }
+
+function corridasDoPeriodo(){
+  const agora = new Date(); const h0 = new Date(agora.getFullYear(),agora.getMonth(),agora.getDate());
+  let inicio = null;
+  if(filtroPeriodo==='1') inicio = h0;
+  if(filtroPeriodo==='7') inicio = new Date(h0.getTime()-6*86400000);
+  if(filtroPeriodo==='30') inicio = new Date(h0.getTime()-29*86400000);
+  return listaCorridas().filter(c=>{
+    const d = new Date(c.criadaEm||0);
+    if(inicio && d < inicio) return false;
+    if(filtroStatus!=='todas' && c.status!==filtroStatus) return false;
+    return true;
+  });
+}
+
+// ===================== RENDER GERAL =====================
+function render(){
+  const chip = document.getElementById('adminchip');
+  if(sessao){ chip.style.display='block'; chip.textContent='👑 '+sessao.nome; }
+  const app = document.getElementById('app');
+  if(editando){ return renderEditar(app); }
+  app.innerHTML = `
+    <div class="tabs">
+      <button class="tab ${tab==='dash'?'on':''}" onclick="mudarTab('dash')">📊 Visão geral</button>
+      <button class="tab ${tab==='pass'?'on':''}" onclick="mudarTab('pass')">🙋 Passageiros (${listaPass().length})</button>
+      <button class="tab ${tab==='moto'?'on':''}" onclick="mudarTab('moto')">🏍️ Motoqueiros (${listaMoto().length})</button>
+      <button class="tab ${tab==='cor'?'on':''}" onclick="mudarTab('cor')">🛵 Corridas & Relatórios</button>
+      <button class="tab ${tab==='adm'?'on':''}" onclick="mudarTab('adm')">⚙️ Admins</button>
+      <button class="tab" onclick="sairAdmin()">🚪 Sair</button>
+    </div>
+    <div id="conteudo"></div>
+  `;
+  const c = document.getElementById('conteudo');
+  if(tab==='dash') renderDash(c);
+  if(tab==='pass') renderPass(c);
+  if(tab==='moto') renderMoto(c);
+  if(tab==='cor') renderCor(c);
+  if(tab==='adm') renderAdm(c);
+}
+
+window.mudarTab = t => { tab=t; editando=null; render(); };
+
+// ===================== DASHBOARD =====================
+function renderDash(el){
+  const cs = listaCorridas();
+  const concl = cs.filter(c=>c.status==='concluida');
+  const fatur = concl.reduce((t,c)=>t+(parseFloat(c.valorAceito)||0),0);
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  const conclHoje = concl.filter(c=>new Date(c.concluidaEm||c.criadaEm||0) >= hoje);
+  const fatHoje = conclHoje.reduce((t,c)=>t+(parseFloat(c.valorAceito)||0),0);
+  const bloqueados = listaPass().filter(p=>p.bloqueado).length + listaMoto().filter(m=>m.bloqueado).length;
+
+  el.innerHTML = `
+    <div class="stats">
+      <div class="stat"><div class="n" style="color:#3B82F6">${listaPass().length}</div><div class="l">🙋 Passageiros</div></div>
+      <div class="stat"><div class="n" style="color:#FFB300">${listaMoto().length}</div><div class="l">🏍️ Motoqueiros</div></div>
+      <div class="stat"><div class="n" style="color:#FACC15">${cs.filter(c=>c.status==='aberta').length}</div><div class="l">📡 Abertas agora</div></div>
+      <div class="stat"><div class="n" style="color:#00E676">${cs.filter(c=>c.status==='aceita'||c.status==='em_rota').length}</div><div class="l">🛵 Em andamento</div></div>
+      <div class="stat"><div class="n" style="color:#9CA3AF">${concl.length}</div><div class="l">✅ Concluídas (total)</div></div>
+      <div class="stat"><div class="n" style="color:#00E676">${brl(fatur)}</div><div class="l">💰 Faturamento total</div></div>
+      <div class="stat"><div class="n" style="color:#00E676">${conclHoje.length}</div><div class="l">✅ Corridas hoje</div></div>
+      <div class="stat"><div class="n" style="color:#00E676">${brl(fatHoje)}</div><div class="l">💰 Faturamento hoje</div></div>
+      <div class="stat"><div class="n" style="color:#EF4444">${bloqueados}</div><div class="l">🚫 Contas bloqueadas</div></div>
+    </div>
+    <div class="card">
+      <div class="lbl" style="margin-bottom:8px">🕐 Últimas corridas</div>
+      ${cs.sort((a,b)=>new Date(b.criadaEm||0)-new Date(a.criadaEm||0)).slice(0,8).map(c=>`
+        <div style="display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px dashed rgba(255,255,255,.06);font-size:12px;flex-wrap:wrap">
+          <span><b>#${esc(c.id.slice(-6))}</b> • ${esc(c.passageiroNome||'?')} → ${esc(c.destEndereco||'').slice(0,28)}</span>
+          <span>${badgeSt(c.status)} <b style="color:#00E676">${c.valorAceito?brl(c.valorAceito):''}</b> <span style="color:#6B7280">${dataHoraFmt(c.criadaEm)}</span></span>
+        </div>`).join('') || '<p style="color:#6B7280;font-size:12px">Nenhuma corrida ainda.</p>'}
+    </div>`;
+}
+
+// ===================== PASSAGEIROS =====================
+function renderPass(el){
+  const lista = listaPass()
+    .filter(p => (p.nome||'').toLowerCase().includes(buscaP) || (p.telefone||'').includes(buscaP))
+    .sort((a,b)=>(a.nome||'').localeCompare(b.nome||''));
+  const corridasDe = id => listaCorridas().filter(c=>c.passageiroId===id && c.status==='concluida').length;
+
+  el.innerHTML = `
+    <div class="card">
+      <input class="inp" placeholder="🔍 Buscar por nome ou telefone..." value="${esc(buscaP)}" oninput="buscaP=this.value;render()"/>
+    </div>
+    ${lista.map(p=>`
+      <div class="item">
+        <div class="head">
+          <div>
+            <div class="nome">🙋 ${esc(p.nome||'—')} ${p.bloqueado?'<span class="badge b-blq">BLOQUEADO</span>':'<span class="badge b-ok">ATIVO</span>'}</div>
+            <div class="sub">📞 ${esc(p.telefone||'—')} • desde ${dataFmt(p.criadoEm)} • ${corridasDe(p.id)} corrida(s) concluída(s)</div>
+          </div>
+        </div>
+        <div class="acts">
+          <button class="btn blue mini" onclick="abrirEditar('p','${p.id}')">✏️ Editar</button>
+          ${p.bloqueado
+            ? `<button class="btn green mini" onclick="bloquear('p','${p.id}',false)">✅ Desbloquear</button>`
+            : `<button class="btn red mini" onclick="bloquear('p','${p.id}',true)">🚫 Bloquear</button>`}
+          <button class="btn ghost mini" onclick="excluir('p','${p.id}','${esc(p.nome||'')}')">🗑️ Excluir</button>
+        </div>
+      </div>`).join('') || '<div class="card" style="text-align:center;color:#6B7280">Nenhum passageiro encontrado.</div>'}
+  `;
+}
+
+// ===================== MOTOQUEIROS =====================
+function renderMoto(el){
+  const lista = listaMoto()
+    .filter(m => (m.nome||'').toLowerCase().includes(buscaM) || (m.telefone||'').includes(buscaM) || (m.placa||'').toLowerCase().includes(buscaM))
+    .sort((a,b)=>(a.nome||'').localeCompare(b.nome||''));
+  const stats = id => {
+    const cs = listaCorridas().filter(c=>c.motoqueiroId===id && c.status==='concluida');
+    return { n: cs.length, tot: cs.reduce((t,c)=>t+(parseFloat(c.valorAceito)||0),0) };
+  };
+
+  el.innerHTML = `
+    <div class="card">
+      <input class="inp" placeholder="🔍 Buscar por nome, telefone ou placa..." value="${esc(buscaM)}" oninput="buscaM=this.value;render()"/>
+    </div>
+    ${lista.map(m=>{ const s = stats(m.id); return `
+      <div class="item">
+        <div class="head">
+          <div>
+            <div class="nome">🏍️ ${esc(m.nome||'—')} ${m.bloqueado?'<span class="badge b-blq">BLOQUEADO</span>':'<span class="badge b-ok">ATIVO</span>'}</div>
+            <div class="sub">📞 ${esc(m.telefone||'—')} • 🪪 CNH ${esc(m.cnh||'—')}<br/>🛵 ${esc(m.modelo||'—')} ${esc(m.cor||'')} • placa ${esc(m.placa||'—')} (${esc(m.ano||'—')})<br/>💠 PIX: ${esc(m.pix||'não cadastrada')} • desde ${dataFmt(m.criadoEm)}</div>
+            <div class="sub" style="color:#00E676;font-weight:700">✅ ${s.n} corrida(s) • 💰 ${brl(s.tot)}</div>
+          </div>
+        </div>
+        <div class="acts">
+          <button class="btn blue mini" onclick="abrirEditar('m','${m.id}')">✏️ Editar</button>
+          ${m.bloqueado
+            ? `<button class="btn green mini" onclick="bloquear('m','${m.id}',false)">✅ Desbloquear</button>`
+            : `<button class="btn red mini" onclick="bloquear('m','${m.id}',true)">🚫 Bloquear</button>`}
+          <button class="btn ghost mini" onclick="excluir('m','${m.id}','${esc(m.nome||'')}')">🗑️ Excluir</button>
+        </div>
+      </div>`; }).join('') || '<div class="card" style="text-align:center;color:#6B7280">Nenhum motoqueiro encontrado.</div>'}
+  `;
+}
+
+// ===================== EDITAR CADASTRO =====================
+window.abrirEditar = (tipo,id) => { editando = {tipo,id}; render(); };
+window.cancelarEditar = () => { editando=null; render(); };
+
+function renderEditar(app){
+  const {tipo,id} = editando;
+  if(tipo==='p'){
+    const d = P[id]||{};
+    app.innerHTML = `
+      <div class="card" style="max-width:520px;margin:0 auto">
+        <b style="font-size:15px">✏️ Editar passageiro</b>
+        <div class="lbl" style="margin-top:12px">Nome</div><input class="inp" id="eNome" value="${esc(d.nome||'')}" style="margin-bottom:10px"/>
+        <div class="lbl">Telefone</div><input class="inp" id="eTel" type="tel" value="${esc(d.telefone||'')}" style="margin-bottom:10px"/>
+        <div class="lbl">Nova senha (vazio = manter)</div><input class="inp" id="eSenha" type="password" style="margin-bottom:14px"/>
+        <button class="btn green" style="width:100%" onclick="salvarEditar()">💾 Salvar</button>
+        <button class="btn ghost" style="width:100%;margin-top:8px" onclick="cancelarEditar()">← Voltar</button>
+      </div>`;
+  } else {
+    const d = M[id]||{};
+    app.innerHTML = `
+      <div class="card" style="max-width:520px;margin:0 auto">
+        <b style="font-size:15px">✏️ Editar motoqueiro</b>
+        <div class="lbl" style="margin-top:12px">Nome</div><input class="inp" id="eNome" value="${esc(d.nome||'')}" style="margin-bottom:10px"/>
+        <div class="grid2" style="margin-bottom:10px">
+          <div><div class="lbl">Telefone</div><input class="inp" id="eTel" type="tel" value="${esc(d.telefone||'')}"/></div>
+          <div><div class="lbl">CNH</div><input class="inp" id="eCnh" value="${esc(d.cnh||'')}"/></div>
+        </div>
+        <div class="grid2" style="margin-bottom:10px">
+          <div><div class="lbl">Placa</div><input class="inp" id="ePlaca" value="${esc(d.placa||'')}" style="text-transform:uppercase"/></div>
+          <div><div class="lbl">Cor</div><input class="inp" id="eCor" value="${esc(d.cor||'')}"/></div>
+        </div>
+        <div class="grid2" style="margin-bottom:10px">
+          <div><div class="lbl">Modelo</div><input class="inp" id="eModelo" value="${esc(d.modelo||'')}"/></div>
+          <div><div class="lbl">Ano</div><input class="inp" id="eAno" type="number" value="${esc(d.ano||'')}"/></div>
+        </div>
+        <div class="lbl">Chave PIX</div><input class="inp" id="ePix" value="${esc(d.pix||'')}" style="margin-bottom:10px"/>
+        <div class="lbl">Nova senha (vazio = manter)</div><input class="inp" id="eSenha" type="password" style="margin-bottom:14px"/>
+        <button class="btn green" style="width:100%" onclick="salvarEditar()">💾 Salvar</button>
+        <button class="btn ghost" style="width:100%;margin-top:8px" onclick="cancelarEditar()">← Voltar</button>
+      </div>`;
+  }
+}
+
+window.salvarEditar = async () => {
+  const {tipo,id} = editando;
+  const nome = (document.getElementById('eNome').value||'').trim();
+  const tel = (document.getElementById('eTel').value||'').replace(/\D/g,'');
+  const senha = document.getElementById('eSenha').value||'';
+  if(!nome){ toast('Informe o nome.',true); return; }
+  if(tel.length<10){ toast('Telefone inválido.',true); return; }
+  if(senha && senha.length<4){ toast('Senha muito curta.',true); return; }
+  try{
+    const lista = tipo==='p' ? listaPass() : listaMoto();
+    if(lista.some(x=>x.telefone===tel && x.id!==id)){ toast('Telefone já usado por outra conta.',true); return; }
+    const patch = { nome, telefone:tel };
+    if(senha) patch.senhaHash = hash(senha);
+    if(tipo==='m'){
+      const placa = (document.getElementById('ePlaca').value||'').trim().toUpperCase();
+      if(placa.length<6){ toast('Placa inválida.',true); return; }
+      if(listaMoto().some(x=>x.placa===placa && x.id!==id)){ toast('Placa já usada por outra moto.',true); return; }
+      patch.cnh = (document.getElementById('eCnh').value||'').trim();
+      patch.placa = placa;
+      patch.cor = (document.getElementById('eCor').value||'').trim();
+      patch.modelo = (document.getElementById('eModelo').value||'').trim();
+      patch.ano = (document.getElementById('eAno').value||'').trim();
+      patch.pix = (document.getElementById('ePix').value||'').trim();
+    }
+    await api(`/${tipo==='p'?'passageiros':'motoqueiros'}/${id}.json`,'PATCH', patch);
+    toast('✅ Cadastro atualizado!');
+    editando=null;
+    await loadAll(); render();
+  }catch(e){ toast('Erro: '+e.message,true); }
+};
+
+// ===================== BLOQUEAR / EXCLUIR =====================
+window.bloquear = async (tipo,id,blq) => {
+  const nome = ((tipo==='p'?P[id]:M[id])||{}).nome||'';
+  if(!confirm(`${blq?'BLOQUEAR':'DESBLOQUEAR'} ${nome}?`)) return;
+  try{
+    await api(`/${tipo==='p'?'passageiros':'motoqueiros'}/${id}.json`,'PATCH',{ bloqueado: blq });
+    toast(blq ? '🚫 Conta bloqueada.' : '✅ Conta desbloqueada.');
+    await loadAll(); render();
+  }catch(e){ toast('Erro: '+e.message,true); }
+};
+
+window.excluir = async (tipo,id,nome) => {
+  if(!confirm(`EXCLUIR permanentemente ${nome}? Esta ação não tem volta.`)) return;
+  if(!confirm('ÚLTIMA CHANCE: excluir mesmo?')) return;
+  try{
+    await api(`/${tipo==='p'?'passageiros':'motoqueiros'}/${id}.json`,'DELETE');
+    toast('🗑️ Registro excluído.');
+    await loadAll(); render();
+  }catch(e){ toast('Erro: '+e.message,true); }
+};
+
+// ===================== CORRIDAS & RELATÓRIOS =====================
+function renderCor(el){
+  const lista = corridasDoPeriodo().sort((a,b)=>new Date(b.criadaEm||0)-new Date(a.criadaEm||0));
+  const concl = lista.filter(c=>c.status==='concluida');
+  const tot = concl.reduce((t,c)=>t+(parseFloat(c.valorAceito)||0),0);
+  const media = concl.length ? tot/concl.length : 0;
+
+  const rank = {};
+  concl.forEach(c=>{
+    const k = c.motoqueiroId||'sem';
+    if(!rank[k]) rank[k] = { nome: c.motoqueiroNome||'Sem motoqueiro', n:0, tot:0 };
+    rank[k].n++; rank[k].tot += parseFloat(c.valorAceito)||0;
+  });
+  const rankLista = Object.values(rank).sort((a,b)=>b.tot-a.tot);
+
+  el.innerHTML = `
+    <div class="card" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end">
+      <div style="flex:1;min-width:140px">
+        <div class="lbl">Status</div>
+        <select class="inp" onchange="filtroStatus=this.value;render()">
+          <option value="todas" ${filtroStatus==='todas'?'selected':''}>Todas</option>
+          <option value="aberta" ${filtroStatus==='aberta'?'selected':''}>Abertas</option>
+          <option value="aceita" ${filtroStatus==='aceita'?'selected':''}>Aceitas</option>
+          <option value="em_rota" ${filtroStatus==='em_rota'?'selected':''}>Em rota</option>
+          <option value="concluida" ${filtroStatus==='concluida'?'selected':''}>Concluídas</option>
+          <option value="cancelada" ${filtroStatus==='cancelada'?'selected':''}>Canceladas</option>
+        </select>
+      </div>
+      <div style="flex:1;min-width:140px">
+        <div class="lbl">Período</div>
+        <select class="inp" onchange="filtroPeriodo=this.value;render()">
+          <option value="1" ${filtroPeriodo==='1'?'selected':''}>Hoje</option>
+          <option value="7" ${filtroPeriodo==='7'?'selected':''}>Últimos 7 dias</option>
+          <option value="30" ${filtroPeriodo==='30'?'selected':''}>Últimos 30 dias</option>
+          <option value="tudo" ${filtroPeriodo==='tudo'?'selected':''}>Tudo</option>
+        </select>
+      </div>
+      <button class="btn green" onclick="exportarCSV()">⬇️ Exportar CSV</button>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="n" style="color:#3B82F6">${lista.length}</div><div class="l">Corridas no filtro</div></div>
+      <div class="stat"><div class="n" style="color:#9CA3AF">${concl.length}</div><div class="l">Concluídas</div></div>
+      <div class="stat"><div class="n" style="color:#00E676">${brl(tot)}</div><div class="l">Faturamento</div></div>
+      <div class="stat"><div class="n" style="color:#FFB300">${brl(media)}</div><div class="l">Ticket médio</div></div>
+    </div>
+
+    ${rankLista.length?`
+    <div class="card">
+      <div class="lbl" style="margin-bottom:8px">🏆 Ranking de motoqueiros (concluídas no período)</div>
+      <table>
+        <tr><th>Motoqueiro</th><th>Corridas</th><th>Faturou</th></tr>
+        ${rankLista.map(r=>`<tr><td>${esc(r.nome)}</td><td>${r.n}</td><td style="color:#00E676;font-weight:700">${brl(r.tot)}</td></tr>`).join('')}
+      </table>
+    </div>`:''}
+
+    <div class="card">
+      <div class="lbl" style="margin-bottom:8px">🛵 Corridas (${lista.length})</div>
+      ${lista.map(c=>{
+        const pg = c.pagamento||{};
+        const pgTxt = pg.status==='pago'?'PIX ✅':pg.metodo==='dinheiro'?'Dinheiro':pg.status==='pix_informado'?'PIX informado':'—';
+        return `
+        <div class="item">
+          <div class="head">
+            <div>
+              <div class="nome">#${esc(c.id.slice(-6))} ${badgeSt(c.status)}</div>
+              <div class="sub">🙋 ${esc(c.passageiroNome||'—')} (${esc(c.passageiroTel||'—')})<br/>
+              📍 ${esc(c.origEndereco||'').slice(0,40)} → 🏁 ${esc(c.destEndereco||'').slice(0,40)}<br/>
+              🏍️ ${esc(c.motoqueiroNome||'não atribuído')} • 📏 ${c.distanciaKm||'—'} km • 🕐 ${dataHoraFmt(c.criadaEm)}</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-size:16px;font-weight:900;color:#00E676">${c.valorAceito?brl(c.valorAceito):'—'}</div>
+              <div class="sub">${pgTxt}</div>
+            </div>
+          </div>
+        </div>`;
+      }).join('') || '<p style="color:#6B7280;font-size:12px;text-align:center">Nenhuma corrida no filtro.</p>'}
+    </div>`;
+}
+
+window.exportarCSV = () => {
+  const lista = corridasDoPeriodo().sort((a,b)=>new Date(b.criadaEm||0)-new Date(a.criadaEm||0));
+  if(!lista.length){ toast('Nada para exportar no filtro.',true); return; }
+  const linhas = [['ID','Data','Status','Passageiro','Tel Passageiro','Motoqueiro','Origem','Destino','Km','Valor','Pagamento']];
+  lista.forEach(c=>{
+    const pg = c.pagamento||{};
+    linhas.push([
+      c.id, dataHoraFmt(c.criadaEm), c.status||'', c.passageiroNome||'', c.passageiroTel||'',
+      c.motoqueiroNome||'', (c.origEndereco||'').replace(/;/g,','), (c.destEndereco||'').replace(/;/g,','),
+      c.distanciaKm||'', (parseFloat(c.valorAceito)||0).toFixed(2),
+      pg.status==='pago'?'PIX':pg.metodo==='dinheiro'?'DINHEIRO':pg.status||''
+    ]);
+  });
+  const csv = '\uFEFF' + linhas.map(l=>l.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(';')).join('\n');
+  const blob = new Blob([csv],{type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'vai-de-moto-corridas-'+new Date().toISOString().split('T')[0]+'.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('⬇️ CSV exportado!');
+};
+
+// ===================== ADMINS =====================
+function renderAdm(el){
+  api('/admins.json','GET').then(admins=>{
+    const lista = Object.values(admins||{});
+    el.innerHTML = `
+      <div class="card" style="max-width:520px">
+        <div class="lbl">Trocar MINHA senha</div>
+        <input class="inp" id="mSenha" type="password" placeholder="Nova senha (mín. 6)" style="margin-bottom:10px"/>
+        <button class="btn amber" onclick="trocarMinhaSenha()">🔑 Trocar minha senha</button>
+      </div>
+      <div class="card" style="max-width:520px">
+        <div class="lbl">Criar admin adicional</div>
+        <input class="inp" id="nNome" placeholder="Nome" style="margin-bottom:8px"/>
+        <input class="inp" id="nUser" placeholder="Usuário" style="margin-bottom:8px"/>
+        <input class="inp" id="nSenha" type="password" placeholder="Senha (mín. 6)" style="margin-bottom:10px"/>
+        <button class="btn green" onclick="criarAdminExtra()">➕ Criar admin</button>
+      </div>
+      <div class="card" style="max-width:520px">
+        <div class="lbl" style="margin-bottom:8px">👑 Administradores (${lista.length})</div>
+        ${lista.map(a=>`
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px dashed rgba(255,255,255,.06)">
+            <span style="font-size:13px"><b>${esc(a.nome||'—')}</b> <span style="color:#8B98A5">(@${esc(a.usuario||'')})</span></span>
+            ${a.id!==sessao.id?`<button class="btn red mini" onclick="excluirAdmin('${a.id}','${esc(a.nome||'')}')">🗑️</button>`:'<span class="badge b-ok">VOCÊ</span>'}
+          </div>`).join('')}
+      </div>`;
+  });
+}
+
+window.trocarMinhaSenha = async () => {
+  const s = document.getElementById('mSenha').value||'';
+  if(s.length<6){ toast('Senha mín. 6 caracteres.',true); return; }
+  await api('/admins/'+sessao.id+'.json','PATCH',{ senhaHash: hash(s) });
+  toast('🔑 Senha trocada!');
+  document.getElementById('mSenha').value='';
+};
+
+window.criarAdminExtra = async () => {
+  const nome = (document.getElementById('nNome').value||'').trim();
+  const user = (document.getElementById('nUser').value||'').trim().toLowerCase();
+  const senha = document.getElementById('nSenha').value||'';
+  if(!nome||!user){ toast('Preencha nome e usuário.',true); return; }
+  if(senha.length<6){ toast('Senha mín. 6.',true); return; }
+  const admins = await api('/admins.json','GET')||{};
+  if(Object.values(admins).some(a=>a.usuario===user)){ toast('Usuário já existe.',true); return; }
+  const id = 'adm-'+Date.now();
+  await api('/admins/'+id+'.json','PUT',{ id, nome, usuario:user, senhaHash:hash(senha), criadoEm:new Date().toISOString() });
+  toast('➕ Admin criado!');
+  render();
+};
+
+window.excluirAdmin = async (id,nome) => {
+  if(!confirm('Excluir o admin '+nome+'?')) return;
+  await api('/admins/'+id+'.json','DELETE');
+  toast('🗑️ Admin excluído.');
+  render();
+};
+
+// ===================== INÍCIO =====================
+function iniciarPainel(){
+  render();
+  if(pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(async ()=>{
+    await loadAll();
+    if(sessao && !editando) render();
+  }, 8000);
+}
+
+(async function init(){
+  const s = carregarSessao();
+  if(s){ sessao = s; await loadAll(); iniciarPainel(); }
+  else renderLogin();
+})();
+</script>
+</body>
+</html>
