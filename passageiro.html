@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<meta name="theme-color" content="#FFB300"/>
+<title>VAI DE MOTO — Passageiro</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  body{background:#0B0F14;color:#E6EDF3;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;line-height:1.5;min-height:100vh}
+  .topo{position:fixed;top:0;left:0;right:0;height:54px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;background:rgba(11,15,20,.97);border-bottom:1px solid rgba(255,179,0,.25);z-index:50}
+  .logo{font-size:16px;font-weight:900}
+  .logo span{color:#FFB300}
+  .chip{font-size:11px;color:#9CA3AF;background:#151B23;border:1px solid #2A3542;padding:5px 10px;border-radius:999px;max-width:45vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .wrap{max-width:520px;margin:0 auto;padding:66px 14px 24px}
+  .card{background:#10161D;border:1px solid #1F2937;border-radius:16px;padding:16px;margin-bottom:12px}
+  .lbl{font-size:10px;color:#8B98A5;text-transform:uppercase;letter-spacing:.8px;margin:0 0 5px;font-weight:700}
+  .inp{width:100%;padding:13px 14px;border-radius:12px;border:1px solid #2A3542;background:#0D1218;color:#E6EDF3;font-size:15px;outline:none;font-family:inherit}
+  .inp:focus{border-color:#FFB300}
+  .btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:52px;border-radius:12px;border:none;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;color:#fff}
+  .btn:active{transform:scale(.98)}
+  .btn.amber{background:linear-gradient(135deg,#FFB300,#FF8F00);color:#1a1408}
+  .btn.green{background:linear-gradient(135deg,#00E676,#00B25A);color:#04140B}
+  .btn.red{background:linear-gradient(135deg,#EF4444,#DC2626)}
+  .btn.ghost{background:transparent;border:1px solid #2A3542;color:#9CA3AF}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .tabs{display:flex;gap:8px;margin-bottom:14px}
+  .tab{flex:1;padding:10px;border-radius:10px;border:1px solid #2A3542;background:transparent;color:#9CA3AF;font-weight:700;font-size:12px;cursor:pointer;font-family:inherit}
+  .tab.on{background:rgba(255,179,0,.12);border-color:#FFB300;color:#FFB300}
+  #mapaHome,#mapaCorrida{height:240px;border-radius:14px;overflow:hidden;background:#0E1A24;margin-bottom:12px}
+  .oferta{display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;background:#0D1218;border:1px solid #1F2937;margin-bottom:10px}
+  .oferta .info{flex:1;min-width:0}
+  .oferta .nome{font-size:14px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .oferta .moto{font-size:11px;color:#9CA3AF;margin-top:2px}
+  .oferta .valor{font-size:18px;font-weight:900;color:#00E676;font-family:ui-monospace,Consolas,monospace;white-space:nowrap}
+  .oferta .btn{width:auto;min-height:40px;padding:0 14px;font-size:12px}
+  .statusbox{padding:12px;border-radius:12px;text-align:center;font-weight:800;font-size:13px;margin-bottom:12px;border:1px solid}
+  .motoCard{display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;background:#0D1218;border:1px solid #1F2937;margin-bottom:12px}
+  .motoCard .avatar{width:48px;height:48px;border-radius:50%;background:rgba(255,179,0,.15);border:2px solid rgba(255,179,0,.4);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+  .motoCard .info{flex:1;min-width:0}
+  .motoCard .nome{font-weight:800;font-size:14px}
+  .motoCard .det{font-size:11px;color:#9CA3AF;margin-top:2px}
+  .rowval{display:flex;justify-content:space-between;padding:7px 0;font-size:13px;border-bottom:1px dashed rgba(255,255,255,.07)}
+  .rowval:last-child{border-bottom:none}
+  .rowval .k{color:#8B98A5}
+  .rowval .v{font-weight:700}
+  .state{text-align:center;padding:36px 10px;color:#8B98A5}
+  .state .big{font-size:42px;margin-bottom:8px}
+  #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#FFB300;color:#1a1408;font-weight:800;font-size:12px;padding:11px 18px;border-radius:999px;opacity:0;transition:opacity .3s;z-index:999;max-width:90vw;text-align:center;pointer-events:none}
+  #toast.show{opacity:1}
+  #toast.err{background:#EF4444;color:#fff}
+  .pulse{animation:pl 1.6s infinite}
+  @keyframes pl{0%{box-shadow:0 0 0 0 rgba(255,179,0,.5)}70%{box-shadow:0 0 0 10px rgba(255,179,0,0)}100%{box-shadow:0 0 0 0 rgba(255,179,0,0)}}
+</style>
+</head>
+<body>
+
+<div class="topo">
+  <div class="logo">🏍️ VAI DE <span>MOTO</span></div>
+  <div class="chip" id="userchip" style="display:none"></div>
+</div>
+
+<div class="wrap" id="app"></div>
+<div id="toast"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="config.js"></script>
+<script>
+const FB = window.VDM.firebaseURL;
+const KEY_SESSAO = 'vdm_passageiro';
+
+let sessao = null;
+let tela = 'login';           // login | home | ofertas | andamento | fim
+let modoLogin = 'entrar';
+let gps = null;               // {lat,lng}
+let watchId = null;
+let corridaAtual = null;      // objeto da corrida
+let ofertasVistas = {};       // mid -> true (p/ beep de nova oferta)
+let pollTimer = null;
+let map = null, mkEu = null, mkMoto = null, mkDest = null, linha = null;
+let destinoTexto = '';
+let audioCtx = null;
+
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function hash(s){let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))>>>0;return'h'+h.toString(36);}
+const brl = v => 'R$ ' + (parseFloat(v)||0).toFixed(2).replace('.',',');
+
+function toast(msg,err){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show' + (err?' err':'');
+  setTimeout(()=>t.className='', 3000);
+}
+
+function beep(){
+  try{
+    if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    if(audioCtx.state==='suspended') audioCtx.resume();
+    const t = audioCtx.currentTime;
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type='sine'; o.frequency.setValueAtTime(880,t); o.frequency.setValueAtTime(1174,t+.12);
+    g.gain.setValueAtTime(.25,t); g.gain.exponentialRampToValueAtTime(.01,t+.5);
+    o.connect(g); g.connect(audioCtx.destination); o.start(t); o.stop(t+.5);
+  }catch(e){}
+}
+
+async function api(caminho, method, body){
+  const opts = { method, headers:{'Content-Type':'application/json'} };
+  if(body) opts.body = JSON.stringify(body);
+  const r = await fetch(FB + caminho, opts);
+  if(!r.ok) throw new Error('HTTP ' + r.status);
+  return await r.json();
+}
+
+function distKm(a,b,c,d){
+  const R=6371, tr=x=>x*Math.PI/180;
+  const dLa=tr(c-a), dLo=tr(d-b);
+  const h=Math.sin(dLa/2)**2 + Math.cos(tr(a))*Math.cos(tr(c))*Math.sin(dLo/2)**2;
+  return R*2*Math.atan2(Math.sqrt(h),Math.sqrt(1-h));
+}
+
+async function geocode(end){
+  const r = await fetch('https://nominatim.openstreetmap.org/search?format=json&q='+encodeURIComponent(end)+'&limit=1&countrycodes=br');
+  const d = await r.json();
+  return (d && d.length) ? {lat:parseFloat(d[0].lat), lng:parseFloat(d[0].lon)} : null;
+}
+
+async function reverseGeo(lat,lng){
+  try{
+    const r = await fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat='+lat+'&lon='+lng+'&zoom=17');
+    const d = await r.json();
+    return d && d.display_name ? d.display_name : null;
+  }catch(e){ return null; }
+}
+
+function salvarSessao(u){ sessao=u; localStorage.setItem(KEY_SESSAO, JSON.stringify(u)); }
+function carregarSessao(){ try{ return JSON.parse(localStorage.getItem(KEY_SESSAO)); }catch(e){ return null; } }
+
+function atualizarChip(){
+  const chip = document.getElementById('userchip');
+  if(sessao){ chip.style.display='block'; chip.textContent = '👤 ' + sessao.nome; }
+  else chip.style.display='none';
+}
+
+// ===================== GPS =====================
+function ativarGPS(){
+  if(!('geolocation' in navigator)) return;
+  if(watchId!==null) return;
+  watchId = navigator.geolocation.watchPosition(
+    p => {
+      gps = { lat:p.coords.latitude, lng:p.coords.longitude };
+      if(tela==='home' && map && mkEu){ mkEu.setLatLng([gps.lat,gps.lng]); map.setView([gps.lat,gps.lng], 16); }
+      if(tela==='home') atualizarStatusGPS();
+    },
+    err => { if(tela==='home') atualizarStatusGPS(err); },
+    { enableHighAccuracy:true, timeout:15000, maximumAge:3000 }
+  );
+}
+function atualizarStatusGPS(err){
+  const el = document.getElementById('gpsStatus');
+  if(!el) return;
+  if(gps){ el.textContent = '🛰️ Localização ativa: ' + gps.lat.toFixed(5) + ', ' + gps.lng.toFixed(5); el.style.color='#00E676'; }
+  else if(err){ el.textContent = '⚠️ Ative o GPS do celular para continuar.'; el.style.color='#EF4444'; }
+  else { el.textContent = '📡 Obtendo sua localização...'; el.style.color='#FFB300'; }
+}
+
+// ===================== RENDER =====================
+function render(){
+  atualizarChip();
+  pararPolling();
+  limparMapa();
+  const app = document.getElementById('app');
+  if(tela==='login') return renderLogin(app);
+  if(tela==='home') return renderHome(app);
+  if(tela==='ofertas') return renderOfertas(app);
+  if(tela==='andamento') return renderAndamento(app);
+  if(tela==='fim') return renderFim(app);
+}
+
+function renderLogin(app){
+  app.innerHTML = `
+    <div class="card" style="margin-top:12px">
+      <div class="tabs">
+        <button class="tab ${modoLogin==='entrar'?'on':''}" onclick="setModo('entrar')">🔐 Entrar</button>
+        <button class="tab ${modoLogin==='criar'?'on':''}" onclick="setModo('criar')">📝 Criar conta</button>
+      </div>
+      <div id="camposLogin"></div>
+    </div>
+    <div style="text-align:center;margin-top:10px"><a href="index.html" style="color:#6B7280;font-size:12px;text-decoration:none">← Voltar ao início</a></div>
+  `;
+  desenharCamposLogin();
+}
+
+window.setModo = m => { modoLogin = m; renderLogin(document.getElementById('app')); };
+
+function desenharCamposLogin(){
+  const box = document.getElementById('camposLogin');
+  if(!box) return;
+  if(modoLogin==='entrar'){
+    box.innerHTML = `
+      <div class="lbl">Telefone (com DDD)</div>
+      <input class="inp" id="liTel" type="tel" placeholder="Ex: 21999998888" style="margin-bottom:10px"/>
+      <div class="lbl">Senha</div>
+      <input class="inp" id="liSenha" type="password" placeholder="••••••" style="margin-bottom:14px"/>
+      <button class="btn amber" onclick="fazerLogin()">Entrar</button>
+    `;
+  } else {
+    box.innerHTML = `
+      <div class="lbl">Nome completo</div>
+      <input class="inp" id="rgNome" placeholder="Ex: Maria Silva" style="margin-bottom:10px"/>
+      <div class="lbl">Telefone (com DDD)</div>
+      <input class="inp" id="rgTel" type="tel" placeholder="Ex: 21999998888" style="margin-bottom:10px"/>
+      <div class="lbl">Senha (mín. 4 caracteres)</div>
+      <input class="inp" id="rgSenha" type="password" placeholder="••••••" style="margin-bottom:14px"/>
+      <button class="btn green" onclick="criarConta()">Criar minha conta</button>
+    `;
+  }
+}
+
+window.criarConta = async () => {
+  const nome = (document.getElementById('rgNome').value||'').trim();
+  const tel = (document.getElementById('rgTel').value||'').replace(/\D/g,'');
+  const senha = document.getElementById('rgSenha').value||'';
+  if(!nome){ toast('Informe seu nome.',true); return; }
+  if(tel.length < 10){ toast('Telefone inválido (use DDD).',true); return; }
+  if(senha.length < 4){ toast('Senha muito curta.',true); return; }
+  try{
+    const todos = await api('/passageiros.json','GET') || {};
+    const jaExiste = Object.values(todos).some(p => p && p.telefone === tel);
+    if(jaExiste){ toast('Este telefone já tem conta. Use Entrar.',true); return; }
+    const id = 'p' + Date.now();
+    await api('/passageiros/'+id+'.json','PUT',{ id, nome, telefone:tel, senhaHash:hash(senha), bloqueado:false, criadoEm:new Date().toISOString() });
+    salvarSessao({ id, nome, telefone:tel });
+    beep();
+    toast('✅ Conta criada! Bem-vindo, '+nome);
+    tela='home'; ativarGPS(); render();
+  }catch(e){ toast('Erro: '+e.message,true); }
+};
+
+window.fazerLogin = async () => {
+  const tel = (document.getElementById('liTel').value||'').replace(/\D/g,'');
+  const senha = document.getElementById('liSenha').value||'';
+  if(!tel || !senha){ toast('Preencha telefone e senha.',true); return; }
+  try{
+    const todos = await api('/passageiros.json','GET') || {};
+    const achado = Object.values(todos).find(p => p && p.telefone === tel);
+    if(!achado){ toast('Conta não encontrada. Crie uma.',true); return; }
+    if(achado.senhaHash !== hash(senha)){ toast('Senha incorreta.',true); return; }
+    if(achado.bloqueado === true){ toast('🚫 Conta bloqueada pelo administrador.',true); return; }
+    salvarSessao({ id:achado.id, nome:achado.nome, telefone:achado.telefone });
+    toast('✅ Olá, '+achado.nome+'!');
+    tela='home'; ativarGPS(); render();
+  }catch(e){ toast('Erro: '+e.message,true); }
+};
+
+window.sair = () => {
+  if(!confirm('Sair da conta?')) return;
+  sessao=null; localStorage.removeItem(KEY_SESSAO);
+  if(watchId!==null){ navigator.geolocation.clearWatch(watchId); watchId=null; }
+  gps=null; corridaAtual=null;
+  tela='login'; render();
+};
+
+function renderHome(app){
+  app.innerHTML = `
+    <div class="card">
+      <div id="mapaHome"></div>
+      <div class="lbl" style="margin-bottom:4px">📍 Sua localização</div>
+      <div id="gpsStatus" style="font-size:11px;color:#FFB300;margin-bottom:12px">📡 Obtendo sua localização...</div>
+      <div class="lbl">🏁 Para onde vamos?</div>
+      <input class="inp" id="inpDestino" placeholder="Rua, número, bairro, cidade" value="${esc(destinoTexto)}" style="margin-bottom:12px"/>
+      <button class="btn amber pulse" id="btnPedir" onclick="pedirCorrida()">🏍️ PEDIR CORRIDA</button>
+    </div>
+    <button class="btn ghost" onclick="sair()">🚪 Sair da conta</button>
+  `;
+  iniciarMapaHome();
+  atualizarStatusGPS();
+}
+
+function iniciarMapaHome(){
+  const el = document.getElementById('mapaHome');
+  if(!el) return;
+  map = L.map(el,{zoomControl:true,attributionControl:false}).setView(gps?[gps.lat,gps.lng]:[-22.9,-43.2], gps?16:11);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18}).addTo(map);
+  if(gps){
+    mkEu = L.marker([gps.lat,gps.lng],{icon:L.divIcon({html:'<div style="font-size:26px">🙋</div>',className:'',iconSize:[30,30],iconAnchor:[15,15]})}).addTo(map);
+  }
+  setTimeout(()=>map.invalidateSize(),300);
+}
+
+window.pedirCorrida = async () => {
+  if(!gps){ toast('Aguarde o GPS ativar (ou verifique a permissão).',true); return; }
+  destinoTexto = (document.getElementById('inpDestino').value||'').trim();
+  if(destinoTexto.length < 8){ toast('Digite o endereço de destino completo.',true); return; }
+  const btn = document.getElementById('btnPedir');
+  btn.disabled = true; btn.textContent = '⏳ Buscando destino no mapa...';
+  try{
+    const dest = await geocode(destinoTexto);
+    if(!dest){ toast('Não encontrei esse endereço. Tente com bairro e cidade.',true); btn.disabled=false; btn.textContent='🏍️ PEDIR CORRIDA'; return; }
+    btn.textContent = '⏳ Criando corrida...';
+    const origEnd = await reverseGeo(gps.lat, gps.lng);
+    const cid = 'c' + Date.now();
+    const corrida = {
+      id: cid,
+      passageiroId: sessao.id,
+      passageiroNome: sessao.nome,
+      passageiroTel: sessao.telefone,
+      origLat: gps.lat, origLng: gps.lng,
+      origEndereco: origEnd || 'Localização atual',
+      destLat: dest.lat, destLng: dest.lng,
+      destEndereco: destinoTexto,
+      distanciaKm: Math.round(distKm(gps.lat,gps.lng,dest.lat,dest.lng)*10)/10,
+      status: 'aberta',
+      motoqueiroId: null, motoqueiroNome: null, valorAceito: null,
+      criadaEm: new Date().toISOString()
+    };
+    await api('/corridas/'+cid+'.json','PUT', corrida);
+    corridaAtual = corrida;
+    ofertasVistas = {};
+    beep();
+    toast('📡 Corrida publicada! Aguardando ofertas...');
+    tela='ofertas'; render(); iniciarPolling();
+  }catch(e){
+    toast('Erro: '+e.message,true);
+    btn.disabled=false; btn.textContent='🏍️ PEDIR CORRIDA';
+  }
+};
+
+function renderOfertas(app){
+  app.innerHTML = `
+    <div class="statusbox" style="color:#FFB300;background:rgba(255,179,0,.08);border-color:rgba(255,179,0,.4)">
+      📡 Divulgando sua corrida para os motoqueiros...
+    </div>
+    <div class="card">
+      <div class="rowval"><span class="k">📍 Origem</span><span class="v" style="max-width:60%;text-align:right;font-weight:500;font-size:12px">${esc(corridaAtual?corridaAtual.origEndereco:'—')}</span></div>
+      <div class="rowval"><span class="k">🏁 Destino</span><span class="v" style="max-width:60%;text-align:right;font-weight:500;font-size:12px">${esc(corridaAtual?corridaAtual.destEndereco:'—')}</span></div>
+      <div class="rowval"><span class="k">📏 Distância</span><span class="v">${corridaAtual?corridaAtual.distanciaKm:'—'} km</span></div>
+    </div>
+    <div class="lbl" style="margin:0 0 6px">💰 Ofertas recebidas (menor preço primeiro)</div>
+    <div id="listaOfertas"><div class="state"><div class="big">⏳</div>Aguardando a primeira oferta...</div></div>
+    <button class="btn red" onclick="cancelarCorrida()" style="margin-top:6px">✖ Cancelar pedido</button>
+  `;
+}
+
+window.cancelarCorrida = async () => {
+  if(!corridaAtual) return;
+  if(!confirm('Cancelar este pedido de corrida?')) return;
+  try{
+    await api('/corridas/'+corridaAtual.id+'.json','PATCH',{ status:'cancelada', canceladaEm:new Date().toISOString() });
+    toast('Pedido cancelado.');
+    corridaAtual=null; tela='home'; render();
+  }catch(e){ toast('Erro: '+e.message,true); }
+};
+
+function renderAndamento(app){
+  const c = corridaAtual;
+  app.innerHTML = `
+    <div class="statusbox" id="stBox" style="color:#3B82F6;background:rgba(59,130,246,.08);border-color:rgba(59,130,246,.4)">🏍️ Motoqueiro a caminho...</div>
+    <div class="card"><div id="mapaCorrida"></div></div>
+    <div class="motoCard">
+      <div class="avatar">🏍️</div>
+      <div class="info">
+        <div class="nome" id="mcNome">${esc(c.motoqueiroNome||'—')}</div>
+        <div class="det" id="mcMoto">—</div>
+        <div class="det" id="mcTel">—</div>
+      </div>
+      <a id="mcLigar" class="btn ghost" style="width:auto;min-height:40px;padding:0 12px;font-size:12px;text-decoration:none" href="#">📞</a>
+    </div>
+    <div class="card">
+      <div class="rowval"><span class="k">💰 Valor combinado</span><span class="v" style="color:#00E676">${brl(c.valorAceito)}</span></div>
+      <div class="rowval"><span class="k">🏁 Destino</span><span class="v" style="max-width:60%;text-align:right;font-weight:500;font-size:12px">${esc(c.destEndereco)}</span></div>
+    </div>
+  `;
+  iniciarMapaCorrida();
+  carregarDadosMotoqueiro();
+}
+
+function renderFim(app){
+  const c = corridaAtual;
+  const concluida = c && c.status==='concluida';
+  app.innerHTML = `
+    <div class="card state">
+      <div class="big">${concluida?'✅':'❌'}</div>
+      <b style="font-size:17px;color:#E6EDF3">${concluida?'Corrida concluída!':'Corrida encerrada'}</b>
+      <p style="margin-top:6px">${concluida?'Obrigado por usar o VAI DE MOTO.':'Não foi possível concluir esta corrida.'}</p>
+    </div>
+    ${c?`<div class="card">
+      <div class="rowval"><span class="k">Motoqueiro</span><span class="v">${esc(c.motoqueiroNome||'—')}</span></div>
+      <div class="rowval"><span class="k">Valor</span><span class="v" style="color:#00E676">${brl(c.valorAceito)}</span></div>
+      <div class="rowval"><span class="k">Pagamento</span><span class="v">Direto ao motoqueiro (dinheiro/Pix)</span></div>
+    </div>`:''}
+    <button class="btn amber" onclick="novaCorrida()">🏍️ PEDIR NOVA CORRIDA</button>
+  `;
+}
+
+window.novaCorrida = () => { corridaAtual=null; destinoTexto=''; tela='home'; ativarGPS(); render(); };
+
+function iniciarMapaCorrida(){
+  const el = document.getElementById('mapaCorrida');
+  if(!el || !corridaAtual) return;
+  const c = corridaAtual;
+  map = L.map(el,{zoomControl:true,attributionControl:false}).setView([c.origLat,c.origLng],14);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18}).addTo(map);
+  mkEu = L.marker([c.origLat,c.origLng],{icon:L.divIcon({html:'<div style="font-size:26px">🙋</div>',className:'',iconSize:[30,30],iconAnchor:[15,15]})}).addTo(map);
+  mkDest = L.marker([c.destLat,c.destLng],{icon:L.divIcon({html:'<div style="font-size:26px">🏁</div>',className:'',iconSize:[30,30],iconAnchor:[15,30]})}).addTo(map);
+  setTimeout(()=>map.invalidateSize(),300);
+}
+
+async function carregarDadosMotoqueiro(){
+  if(!corridaAtual || !corridaAtual.motoqueiroId) return;
+  try{
+    const m = await api('/motoqueiros/'+corridaAtual.motoqueiroId+'.json','GET');
+    if(!m) return;
+    const elMoto = document.getElementById('mcMoto');
+    const elTel = document.getElementById('mcTel');
+    const elLig = document.getElementById('mcLigar');
+    if(elMoto) elMoto.textContent = '🏍️ ' + [m.modelo,m.cor,m.placa].filter(Boolean).join(' • ');
+    if(elTel) elTel.textContent = '🪪 ' + (m.nome||'');
+    if(elLig && m.telefone) elLig.href = 'tel:+55'+m.telefone;
+  }catch(e){}
+}
+
+// ===================== POLLING AO VIVO =====================
+function iniciarPolling(){
+  pararPolling();
+  pollTimer = setInterval(tick, window.VDM.pollMs || 4000);
+  tick();
+}
+function pararPolling(){ if(pollTimer){ clearInterval(pollTimer); pollTimer=null; } }
+
+async function tick(){
+  if(!corridaAtual) return;
+  try{
+    const c = await api('/corridas/'+corridaAtual.id+'.json','GET');
+    if(!c) return;
+
+    if(tela==='ofertas'){
+      if(c.status==='aceita' || c.status==='em_rota'){
+        corridaAtual = c; beep(); toast('✅ Oferta aceita! Acompanhe a corrida.');
+        tela='andamento'; render(); iniciarPolling(); return;
+      }
+      if(c.status==='cancelada'){ toast('Corrida cancelada.',true); corridaAtual=null; tela='home'; render(); return; }
+      // renderiza ofertas
+      const ofs = c.ofertas ? Object.entries(c.ofertas).map(([mid,o])=>({mid,...o})) : [];
+      ofs.sort((a,b)=>(parseFloat(a.valor)||0)-(parseFloat(b.valor)||0));
+      const lista = document.getElementById('listaOfertas');
+      if(lista){
+        if(ofs.length===0){
+          lista.innerHTML = '<div class="state"><div class="big">⏳</div>Aguardando a primeira oferta...</div>';
+        } else {
+          lista.innerHTML = ofs.map(o=>`
+            <div class="oferta">
+              <div class="info">
+                <div class="nome">🏍️ ${esc(o.nome||'Motoqueiro')}</div>
+                <div class="moto">${esc([o.modelo,o.cor,o.placa].filter(Boolean).join(' • '))}</div>
+              </div>
+              <div class="valor">${brl(o.valor)}</div>
+              <button class="btn green" onclick="aceitarOferta('${esc(o.mid)}', ${parseFloat(o.valor)||0})">Aceitar</button>
+            </div>
+          `).join('');
+          // beep para oferta nova
+          ofs.forEach(o=>{ if(!ofertasVistas[o.mid]){ ofertasVistas[o.mid]=true; beep(); } });
+        }
+      }
+    }
+
+    if(tela==='andamento'){
+      corridaAtual = c;
+      const st = document.getElementById('stBox');
+      if(st){
+        if(c.status==='aceita'){ st.style.color='#3B82F6'; st.style.background='rgba(59,130,246,.08)'; st.style.borderColor='rgba(59,130,246,.4)'; st.textContent='🏍️ '+ (c.motoqueiroNome||'Motoqueiro') +' a caminho do seu local...'; }
+        if(c.status==='em_rota'){ st.style.color='#00E676'; st.style.background='rgba(0,230,118,.08)'; st.style.borderColor='rgba(0,230,118,.4)'; st.textContent='🛵 Em corrida para o destino...'; }
+      }
+      if(c.status==='concluida'){ beep(); tela='fim'; render(); return; }
+      if(c.status==='cancelada'){ toast('Corrida cancelada.',true); tela='fim'; render(); return; }
+      // posição do motoqueiro
+      try{
+        const pos = await api('/posicoes/'+c.id+'.json','GET');
+        if(pos && pos.lat && map){
+          if(!mkMoto){
+            mkMoto = L.marker([pos.lat,pos.lng],{icon:L.divIcon({html:'<div style="font-size:28px">🏍️</div>',className:'',iconSize:[32,32],iconAnchor:[16,16]})}).addTo(map);
+          } else mkMoto.setLatLng([pos.lat,pos.lng]);
+          const alvo = (c.status==='aceita') ? [c.origLat,c.origLng] : [c.destLat,c.destLng];
+          if(linha) map.removeLayer(linha);
+          linha = L.polyline([[pos.lat,pos.lng],alvo],{color:'#FFB300',weight:4,dashArray:'8 8',opacity:.85}).addTo(map);
+          map.fitBounds(L.latLngBounds([[pos.lat,pos.lng],alvo]).pad(0.3));
+        }
+      }catch(e){}
+    }
+  }catch(e){}
+}
+
+window.aceitarOferta = async (mid, valor) => {
+  if(!corridaAtual) return;
+  if(!confirm('Aceitar a oferta de '+brl(valor)+'?')) return;
+  try{
+    const m = await api('/motoqueiros/'+mid+'.json','GET');
+    await api('/corridas/'+corridaAtual.id+'.json','PATCH',{
+      status:'aceita',
+      motoqueiroId: mid,
+      motoqueiroNome: (m && m.nome) || 'Motoqueiro',
+      valorAceito: valor,
+      aceitaEm: new Date().toISOString()
+    });
+    beep();
+    toast('✅ Oferta aceita! Os demais motoqueiros não veem mais esta corrida.');
+  }catch(e){ toast('Erro: '+e.message,true); }
+};
+
+// ===================== MAPA UTILS =====================
+function limparMapa(){
+  if(map){ map.remove(); map=null; }
+  mkEu=mkMoto=mkDest=null; linha=null;
+}
+
+// ===================== INIT =====================
+(function init(){
+  const s = carregarSessao();
+  if(s){
+    sessao = s;
+    tela = 'home';
+    ativarGPS();
+  }
+  render();
+})();
+</script>
+</body>
+</html>
