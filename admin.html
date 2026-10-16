@@ -1,43 +1,53 @@
-function renderPass(){
-  const el = document.getElementById('aba-pass');
+function renderMoto(){
+  const el = document.getElementById('aba-moto');
   if(!el) return;
-  const lista = listaPass().filter(p => 
-    (p.nome||'').toLowerCase().includes(buscaP.toLowerCase()) || 
-    (p.telefone||'').includes(buscaP)
+  const lista = listaMoto().filter(m => 
+    (m.nome||'').toLowerCase().includes(buscaM.toLowerCase()) || 
+    (m.telefone||'').includes(buscaM) || 
+    (m.placa||'').toLowerCase().includes(buscaM.toLowerCase())
   ).sort((a,b)=>(a.nome||'').localeCompare(b.nome||''));
-  const corridasDe = id => listaCorridas().filter(c=>c.passageiroId===id && c.status==='concluida').length;
+  const stats = id => { 
+    const cs = listaCorridas().filter(c=>c.motoqueiroId===id && c.status==='concluida'); 
+    return { n: cs.length, tot: cs.reduce((t,c)=>t+(parseFloat(c.valorAceito)||0),0) }; 
+  };
   
   el.innerHTML = `
     <div class="card" style="display:flex;gap:8px;align-items:center">
-      <input class="inp" id="buscaPassInput" placeholder="🔍 Buscar por nome ou telefone..." 
-             value="${esc(buscaP)}" autocomplete="off" 
-             oninput="buscaP=this.value;renderPass()"
+      <input class="inp" id="buscaMotoInput" placeholder="🔍 Buscar por nome, telefone ou placa..." 
+             value="${esc(buscaM)}" autocomplete="off" 
+             oninput="buscaM=this.value;renderMoto()"
              style="flex:1"/>
-      <button class="btn ghost mini" onclick="limparBuscaPass()">✖ Limpar</button>
+      <button class="btn ghost mini" onclick="limparBuscaMoto()">✖ Limpar</button>
     </div>
-    ${lista.map(p=>`
-      <div class="item">
-        <div class="head">
-          <div>
-            <div class="nome">🙋 ${esc(p.nome||'—')} ${p.bloqueado?'<span class="badge b-blq">BLOQUEADO</span>':'<span class="badge b-ok">ATIVO</span>'}</div>
-            <div class="sub">📞 ${esc(p.telefone||'—')} • desde ${dataFmt(p.criadoEm)} • ${corridasDe(p.id)} corrida(s) concluída(s)</div>
+    ${lista.map(m=>{ 
+      const s = stats(m.id); 
+      return `
+        <div class="item">
+          <div class="head">
+            <div>
+              <div class="nome">🏍️ ${esc(m.nome||'—')} ${m.bloqueado?'<span class="badge b-blq">BLOQUEADO</span>':'<span class="badge b-ok">ATIVO</span>'}</div>
+              <div class="sub">📞 ${esc(m.telefone||'—')} • 🪪 CNH ${esc(m.cnh||'—')}<br/>
+              🛵 ${esc(m.modelo||'—')} ${esc(m.cor||'')} • placa ${esc(m.placa||'—')} (${esc(m.ano||'—')})<br/>
+              💠 PIX: ${esc(m.pix||'não cadastrada')} • desde ${dataFmt(m.criadoEm)}</div>
+              <div class="sub" style="color:#00E676;font-weight:700">✅ ${s.n} corrida(s) • 💰 ${brl(s.tot)}</div>
+            </div>
+          </div>
+          <div class="acts">
+            <button class="btn blue mini" onclick="abrirEditar('m','${m.id}')">✏️ Editar</button>
+            ${m.bloqueado 
+              ? `<button class="btn green mini" onclick="bloquear('m','${m.id}',false)">✅ Desbloquear</button>` 
+              : `<button class="btn red mini" onclick="bloquear('m','${m.id}',true)">🚫 Bloquear</button>`}
+            <button class="btn ghost mini" onclick="excluir('m','${m.id}','${esc(m.nome||'')}')">🗑️ Excluir</button>
           </div>
         </div>
-        <div class="acts">
-          <button class="btn blue mini" onclick="abrirEditar('p','${p.id}')">✏️ Editar</button>
-          ${p.bloqueado 
-            ? `<button class="btn green mini" onclick="bloquear('p','${p.id}',false)">✅ Desbloquear</button>` 
-            : `<button class="btn red mini" onclick="bloquear('p','${p.id}',true)">🚫 Bloquear</button>`}
-          <button class="btn ghost mini" onclick="excluir('p','${p.id}','${esc(p.nome||'')}')">🗑️ Excluir</button>
-        </div>
-      </div>
-    `).join('') || '<div class="card" style="text-align:center;color:#6B7280">Nenhum passageiro encontrado.</div>'}
+      `; 
+    }).join('') || '<div class="card" style="text-align:center;color:#6B7280">Nenhum motoqueiro encontrado.</div>'}
   `;
 }
 
-window.limparBuscaPass = () => {
-  buscaP = '';
-  const inp = document.getElementById('buscaPassInput');
+window.limparBuscaMoto = () => {
+  buscaM = '';
+  const inp = document.getElementById('buscaMotoInput');
   if(inp) inp.value = '';
-  renderPass();
+  renderMoto();
 };
