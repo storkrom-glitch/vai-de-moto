@@ -101,15 +101,15 @@
 
 <div id="painel" style="display:none">
   <div class="wrap">
-    <div class="tabs" id="tabsContainer">
-      <button class="tab on" data-aba="dash" onclick="mudarAba('dash')"> Visão geral</button>
+    <div class="tabs">
+      <button class="tab on" data-aba="dash" onclick="mudarAba('dash')">📊 Visão geral</button>
       <button class="tab" data-aba="mapa" onclick="mudarAba('mapa')">🗺️ Mapa ao vivo</button>
       <button class="tab" data-aba="pontos" onclick="mudarAba('pontos')">📌 Pontos (<span id="cntPontos">0</span>)</button>
       <button class="tab" data-aba="testes" onclick="mudarAba('testes')">🧪 Corrida de Teste</button>
       <button class="tab" data-aba="pass" onclick="mudarAba('pass')">🙋 Passageiros (<span id="cntPass">0</span>)</button>
       <button class="tab" data-aba="moto" onclick="mudarAba('moto')">🏍️ Motoqueiros (<span id="cntMoto">0</span>)</button>
-      <button class="tab" data-aba="cor" onclick="mudarAba('cor')">🛵 Corridas & Relatórios</button>
-      <button class="tab" data-aba="adm" onclick="mudarAba('adm')">⚙️ Admins</button>
+      <button class="tab" data-aba="cor" onclick="mudarAba('cor')"> Corridas & Relatórios</button>
+      <button class="tab" data-aba="adm" onclick="mudarAba('adm')">️ Admins</button>
       <button class="tab" onclick="sairAdmin()">🚪 Sair</button>
     </div>
 
@@ -118,7 +118,7 @@
       <div class="stats" id="statsMapa"></div>
       <div id="alertasTravadas"></div>
       <div class="mapa-controles">
-        <button class="btn blue" id="btnAddPonto" onclick="toggleModoPonto()"> Adicionar ponto de interesse</button>
+        <button class="btn blue" id="btnAddPonto" onclick="toggleModoPonto()">📌 Adicionar ponto de interesse</button>
         <button class="btn ghost" onclick="centralizarMapa()">🎯 Centralizar tudo</button>
         <button class="btn ghost" onclick="forcarAtualizacaoMapa()">🔄 Atualizar agora</button>
       </div>
@@ -127,8 +127,8 @@
       </div>
       <div id="mapaLegenda">
         <span>🟢 Motoqueiro online</span>
-        <span> Motoqueiro em corrida</span>
-        <span>📍 Origem do pedido</span>
+        <span>🔵 Motoqueiro em corrida</span>
+        <span> Origem do pedido</span>
         <span>🏁 Destino do pedido</span>
         <span>📌 Ponto de interesse</span>
       </div>
@@ -158,6 +158,16 @@ let buscaP = '', buscaM = '';
 let filtroStatus = 'todas', filtroPeriodo = '30';
 let editando = null;
 let pollTimer = null;
+
+// 🎯 Estado do formulário de teste (preservado entre renderizações)
+let estadoTeste = {
+  motoId: '',
+  passNome: 'Cliente Teste Admin',
+  passTel: '00000000000',
+  origem: 'Local de Teste - Origem',
+  destino: 'Local de Teste - Destino',
+  valor: '15.00'
+};
 
 let mapa = null;
 let mapaInicializado = false;
@@ -215,21 +225,10 @@ async function renderLogin(){
   const primeiro = !admins || Object.keys(admins).length === 0;
 
   if(primeiro){
-    app.innerHTML = `<div class="card" style="max-width:420px;margin:30px auto">
-      <div style="text-align:center;margin-bottom:14px"><div style="font-size:38px">👑</div><b style="font-size:16px">Primeiro acesso do Administrador</b><p style="font-size:11px;color:#8B98A5;margin-top:4px">Crie seu usuário mestre do VAI DE MOTO</p></div>
-      <div class="lbl">Seu nome</div><input class="inp" id="aNome" placeholder="Ex: Washington" style="margin-bottom:10px"/>
-      <div class="lbl">Usuário de login</div><input class="inp" id="aUser" placeholder="ex: admin" style="margin-bottom:10px"/>
-      <div class="lbl">Senha (mín. 6)</div><input class="inp" id="aSenha" type="password" placeholder="••••••" style="margin-bottom:14px"/>
-      <button class="btn amber" style="width:100%" onclick="criarAdmin()">👑 Criar acesso de administrador</button>
-    </div>`;
+    app.innerHTML = '<div class="card" style="max-width:420px;margin:30px auto"><div style="text-align:center;margin-bottom:14px"><div style="font-size:38px">👑</div><b style="font-size:16px">Primeiro acesso do Administrador</b><p style="font-size:11px;color:#8B98A5;margin-top:4px">Crie seu usuário mestre do VAI DE MOTO</p></div><div class="lbl">Seu nome</div><input class="inp" id="aNome" placeholder="Ex: Washington" style="margin-bottom:10px"/><div class="lbl">Usuário de login</div><input class="inp" id="aUser" placeholder="ex: admin" style="margin-bottom:10px"/><div class="lbl">Senha (mín. 6)</div><input class="inp" id="aSenha" type="password" placeholder="••••••" style="margin-bottom:14px"/><button class="btn amber" style="width:100%" onclick="criarAdmin()">👑 Criar acesso de administrador</button></div>';
     return;
   }
-  app.innerHTML = `<div class="card" style="max-width:420px;margin:30px auto">
-    <div style="text-align:center;margin-bottom:14px"><div style="font-size:38px"></div><b style="font-size:16px">Painel do Administrador</b></div>
-    <div class="lbl">Usuário</div><input class="inp" id="lUser" placeholder="admin" style="margin-bottom:10px"/>
-    <div class="lbl">Senha</div><input class="inp" id="lSenha" type="password" placeholder="••••••" style="margin-bottom:14px"/>
-    <button class="btn amber" style="width:100%" onclick="logarAdmin()">Entrar no painel</button>
-  </div>`;
+  app.innerHTML = '<div class="card" style="max-width:420px;margin:30px auto"><div style="text-align:center;margin-bottom:14px"><div style="font-size:38px">🔐</div><b style="font-size:16px">Painel do Administrador</b></div><div class="lbl">Usuário</div><input class="inp" id="lUser" placeholder="admin" style="margin-bottom:10px"/><div class="lbl">Senha</div><input class="inp" id="lSenha" type="password" placeholder="••••••" style="margin-bottom:14px"/><button class="btn amber" style="width:100%" onclick="logarAdmin()">Entrar no painel</button></div>';
 }
 
 window.criarAdmin = async () => {
@@ -241,7 +240,7 @@ window.criarAdmin = async () => {
   const id = 'adm-' + Date.now();
   await api('/admins/'+id+'.json','PUT',{ id, nome, usuario:user, senhaHash:hash(senha), criadoEm:new Date().toISOString() });
   salvarSessao({ id, nome, usuario:user });
-  toast(' Admin criado! Bem-vindo.');
+  toast('👑 Admin criado! Bem-vindo.');
   mostrarPainel();
 };
 
@@ -275,32 +274,15 @@ function mostrarPainel(){
   if(!mapaInicializado){
     setTimeout(()=>{
       try{
-        mapa = L.map('mapaVivo',{
-          zoomControl:true,
-          zoomSnap: 0.5,
-          zoomDelta: 0.5,
-          wheelPxPerZoomLevel: 120
-        }).setView([-22.9,-43.2], 11);
-        
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-          maxZoom:18,
-          attribution:'© OpenStreetMap'
-        }).addTo(mapa);
-        
+        mapa = L.map('mapaVivo',{zoomControl:true,zoomSnap:0.5,zoomDelta:0.5,wheelPxPerZoomLevel:120}).setView([-22.9,-43.2], 11);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'© OpenStreetMap'}).addTo(mapa);
         mapaInicializado = true;
         setupCliqueMapa();
-        
         mapa.on('zoomend moveend', ()=>{
           const status = document.getElementById('mapaStatus');
-          if(status){
-            status.style.display = 'block';
-            setTimeout(()=>{ status.style.display = 'none'; }, 2000);
-          }
+          if(status){ status.style.display = 'block'; setTimeout(()=>{ status.style.display = 'none'; }, 2000); }
         });
-      }catch(e){
-        console.error('Erro ao inicializar mapa:', e);
-        toast('Erro ao carregar mapa: '+e.message, true);
-      }
+      }catch(e){ console.error('Erro ao inicializar mapa:', e); toast('Erro ao carregar mapa: '+e.message, true); }
     }, 300);
   }
   
@@ -310,10 +292,9 @@ function mostrarPainel(){
   pollTimer = setInterval(async ()=>{
     await loadAll();
     if(sessao && !editando){
-      renderTodasAbas();
-      if(abaAtual==='mapa' && mapaInicializado){
-        sincronizarMapa();
-      }
+      // 🎯 Não re-renderiza a aba de testes para preservar o formulário
+      renderTodasAbas(true);
+      if(abaAtual==='mapa' && mapaInicializado){ sincronizarMapa(); }
     }
   }, 8000);
 }
@@ -358,39 +339,28 @@ function detectarCorridasTravadas(){
     const pos = POS[c.id];
     if(!pos || !pos.ts){
       const idadeMin = (agora - new Date(c.criadaEm||0).getTime())/60000;
-      if(idadeMin > TEMPO_MAX_SEM_GPS_MIN){
-        travadas.push({corrida:c, motivo:'Sem GPS desde o início', tempoMin: Math.floor(idadeMin)});
-      }
+      if(idadeMin > TEMPO_MAX_SEM_GPS_MIN){ travadas.push({corrida:c, motivo:'Sem GPS desde o início', tempoMin: Math.floor(idadeMin)}); }
       return;
     }
     const idadePosMin = (agora - new Date(pos.ts).getTime())/60000;
-    if(idadePosMin > TEMPO_MAX_SEM_GPS_MIN){
-      travadas.push({corrida:c, motivo:'Último GPS há '+Math.floor(idadePosMin)+' min', tempoMin: Math.floor(idadePosMin)});
-    }
+    if(idadePosMin > TEMPO_MAX_SEM_GPS_MIN){ travadas.push({corrida:c, motivo:'Último GPS há '+Math.floor(idadePosMin)+' min', tempoMin: Math.floor(idadePosMin)}); }
   });
   return travadas;
 }
 
 window.mudarAba = (aba) => {
   abaAtual = aba;
-  document.querySelectorAll('.tab').forEach(t => {
-    t.classList.toggle('on', t.dataset.aba === aba);
-  });
-  document.querySelectorAll('.aba-conteudo').forEach(el => {
-    el.classList.remove('ativa');
-  });
+  document.querySelectorAll('.tab').forEach(t => { t.classList.toggle('on', t.dataset.aba === aba); });
+  document.querySelectorAll('.aba-conteudo').forEach(el => { el.classList.remove('ativa'); });
   const abaEl = document.getElementById('aba-'+aba);
   if(abaEl) abaEl.classList.add('ativa');
   
   if(aba === 'mapa' && mapaInicializado){
-    setTimeout(()=>{
-      mapa.invalidateSize();
-      sincronizarMapa();
-    }, 100);
+    setTimeout(()=>{ mapa.invalidateSize(); sincronizarMapa(); }, 100);
   }
 };
 
-function renderTodasAbas(){
+function renderTodasAbas(preservarTeste = false){
   document.getElementById('cntPontos').textContent = listaPontos().length;
   document.getElementById('cntPass').textContent = listaPass().length;
   document.getElementById('cntMoto').textContent = listaMoto().length;
@@ -399,11 +369,18 @@ function renderTodasAbas(){
   renderMapaStats();
   renderAlertasTravadas();
   renderPontos();
-  renderTestes();
+  if(!preservarTeste) renderTestes(); else atualizarContadoresTeste();
   renderPass();
   renderMoto();
   renderCor();
   renderAdm();
+}
+
+function atualizarContadoresTeste(){
+  // Apenas atualiza os contadores, não re-renderiza o formulário
+  document.getElementById('cntPontos').textContent = listaPontos().length;
+  document.getElementById('cntPass').textContent = listaPass().length;
+  document.getElementById('cntMoto').textContent = listaMoto().length;
 }
 
 function renderDash(){
@@ -419,36 +396,7 @@ function renderDash(){
   const abertas = cs.filter(c=>c.status==='aberta').length;
   const travadas = detectarCorridasTravadas();
 
-  el.innerHTML = `
-    ${travadas.length ? `
-    <div class="alerta-travada">
-      <div class="ico">🚨</div>
-      <div class="txt">
-        <b>${travadas.length} corrida(s) possivelmente travada(s)</b>
-        <small>Sem atualização de GPS há mais de ${TEMPO_MAX_SEM_GPS_MIN} minutos</small>
-      </div>
-      <button class="btn red mini" onclick="mudarAba('cor')">Ver agora</button>
-    </div>` : ''}
-    <div class="stats">
-      <div class="stat"><div class="n" style="color:#3B82F6">${listaPass().length}</div><div class="l">🙋 Passageiros</div></div>
-      <div class="stat"><div class="n" style="color:#FFB300">${listaMoto().length}</div><div class="l">🏍️ Motoqueiros</div></div>
-      <div class="stat"><div class="n" style="color:#FACC15">${abertas}</div><div class="l">📡 Abertas agora</div></div>
-      <div class="stat"><div class="n" style="color:#00E676">${cs.filter(c=>c.status==='aceita'||c.status==='em_rota').length}</div><div class="l">🛵 Em andamento</div></div>
-      ${travadas.length ? `<div class="stat" style="border-color:rgba(239,68,68,.5)"><div class="n" style="color:#EF4444">${travadas.length}</div><div class="l">🚨 Travadas</div></div>` : ''}
-      <div class="stat"><div class="n" style="color:#9CA3AF">${concl.length}</div><div class="l">✅ Concluídas (total)</div></div>
-      <div class="stat"><div class="n" style="color:#00E676">${brl(fatur)}</div><div class="l">💰 Faturamento total</div></div>
-      <div class="stat"><div class="n" style="color:#00E676">${conclHoje.length}</div><div class="l">✅ Corridas hoje</div></div>
-      <div class="stat"><div class="n" style="color:#00E676">${brl(fatHoje)}</div><div class="l">💰 Faturamento hoje</div></div>
-      <div class="stat"><div class="n" style="color:#EF4444">${bloqueados}</div><div class="l">🚫 Contas bloqueadas</div></div>
-    </div>
-    <div class="card">
-      <div class="lbl" style="margin-bottom:8px">🕐 Últimas corridas</div>
-      ${cs.sort((a,b)=>new Date(b.criadaEm||0)-new Date(a.criadaEm||0)).slice(0,8).map(c=>`
-        <div style="display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px dashed rgba(255,255,255,.06);font-size:12px;flex-wrap:wrap">
-          <span><b>#${esc(c.id.slice(-6))}</b> • ${esc(c.passageiroNome||'?')} → ${esc(c.destEndereco||'').slice(0,28)}</span>
-          <span>${badgeSt(c.status)} <b style="color:#00E676">${c.valorAceito?brl(c.valorAceito):''}</b> <span style="color:#6B7280">${dataHoraFmt(c.criadaEm)}</span></span>
-        </div>`).join('') || '<p style="color:#6B7280;font-size:12px">Nenhuma corrida ainda.</p>'}
-    </div>`;
+  el.innerHTML = (travadas.length ? '<div class="alerta-travada"><div class="ico">🚨</div><div class="txt"><b>'+travadas.length+' corrida(s) possivelmente travada(s)</b><small>Sem atualização de GPS há mais de '+TEMPO_MAX_SEM_GPS_MIN+' minutos</small></div><button class="btn red mini" onclick="mudarAba(\'cor\')">Ver agora</button></div>' : '') + '<div class="stats"><div class="stat"><div class="n" style="color:#3B82F6">'+listaPass().length+'</div><div class="l"> Passageiros</div></div><div class="stat"><div class="n" style="color:#FFB300">'+listaMoto().length+'</div><div class="l">🏍️ Motoqueiros</div></div><div class="stat"><div class="n" style="color:#FACC15">'+abertas+'</div><div class="l"> Abertas agora</div></div><div class="stat"><div class="n" style="color:#00E676">'+cs.filter(c=>c.status==='aceita'||c.status==='em_rota').length+'</div><div class="l"> Em andamento</div></div>'+(travadas.length ? '<div class="stat" style="border-color:rgba(239,68,68,.5)"><div class="n" style="color:#EF4444">'+travadas.length+'</div><div class="l">🚨 Travadas</div></div>' : '')+'<div class="stat"><div class="n" style="color:#9CA3AF">'+concl.length+'</div><div class="l">✅ Concluídas (total)</div></div><div class="stat"><div class="n" style="color:#00E676">'+brl(fatur)+'</div><div class="l">💰 Faturamento total</div></div><div class="stat"><div class="n" style="color:#00E676">'+conclHoje.length+'</div><div class="l">✅ Corridas hoje</div></div><div class="stat"><div class="n" style="color:#00E676">'+brl(fatHoje)+'</div><div class="l">💰 Faturamento hoje</div></div><div class="stat"><div class="n" style="color:#EF4444">'+bloqueados+'</div><div class="l">🚫 Contas bloqueadas</div></div></div><div class="card"><div class="lbl" style="margin-bottom:8px">🕐 Últimas corridas</div>'+(cs.sort((a,b)=>new Date(b.criadaEm||0)-new Date(a.criadaEm||0)).slice(0,8).map(c=>'<div style="display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px dashed rgba(255,255,255,.06);font-size:12px;flex-wrap:wrap"><span><b>#'+esc(c.id.slice(-6))+'</b> • '+esc(c.passageiroNome||'?')+' → '+esc(c.destEndereco||'').slice(0,28)+'</span><span>'+badgeSt(c.status)+' <b style="color:#00E676">'+(c.valorAceito?brl(c.valorAceito):'')+'</b> <span style="color:#6B7280">'+dataHoraFmt(c.criadaEm)+'</span></span></div>').join('') || '<p style="color:#6B7280;font-size:12px">Nenhuma corrida ainda.</p>')+'</div>';
 }
 
 function renderAlertasTravadas(){
@@ -456,43 +404,14 @@ function renderAlertasTravadas(){
   if(!el) return;
   const travadas = detectarCorridasTravadas();
   if(travadas.length === 0){ el.innerHTML = ''; return; }
-  el.innerHTML = `
-    <div class="alerta-travada">
-      <div class="ico">🚨</div>
-      <div class="txt">
-        <b>${travadas.length} corrida(s) sem movimento há +${TEMPO_MAX_SEM_GPS_MIN} min</b>
-        <small>Motoqueiro pode ter travado. Use os botões abaixo para resolver.</small>
-      </div>
-    </div>
-    ${travadas.map(t=>`
-      <div class="item travada">
-        <div class="head">
-          <div>
-            <div class="nome">🚨 #${esc(t.corrida.id.slice(-6))} <span class="badge b-trav">TRAVADA</span> ${badgeSt(t.corrida.status)}</div>
-            <div class="sub">🏍️ ${esc(t.corrida.motoqueiroNome||'—')} • 🙋 ${esc(t.corrida.passageiroNome||'—')}<br/>
-            ⚠️ ${t.motivo} •  ${brl(t.corrida.valorAceito||0)}</div>
-          </div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap">
-            <button class="btn green mini" onclick="forcarConclusao('${t.corrida.id}')">✅ Forçar conclusão</button>
-            <button class="btn red mini" onclick="abrirModalCancelar('${t.corrida.id}')">❌ Cancelar</button>
-          </div>
-        </div>
-      </div>
-    `).join('')}
-  `;
+  el.innerHTML = '<div class="alerta-travada"><div class="ico">🚨</div><div class="txt"><b>'+travadas.length+' corrida(s) sem movimento há +'+TEMPO_MAX_SEM_GPS_MIN+' min</b><small>Motoqueiro pode ter travado. Use os botões abaixo para resolver.</small></div></div>'+travadas.map(t=>'<div class="item travada"><div class="head"><div><div class="nome">🚨 #'+esc(t.corrida.id.slice(-6))+' <span class="badge b-trav">TRAVADA</span> '+badgeSt(t.corrida.status)+'</div><div class="sub">🏍️ '+esc(t.corrida.motoqueiroNome||'—')+' • 🙋 '+esc(t.corrida.passageiroNome||'—')+'<br/>⚠️ '+t.motivo+' •  '+brl(t.corrida.valorAceito||0)+'</div></div><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn green mini" onclick="forcarConclusao(\''+t.corrida.id+'\')">✅ Forçar conclusão</button><button class="btn red mini" onclick="abrirModalCancelar(\''+t.corrida.id+'\')">❌ Cancelar</button></div></div></div>').join('');
 }
 
 function renderMapaStats(){
   const el = document.getElementById('statsMapa');
   if(!el) return;
   const travadas = detectarCorridasTravadas();
-  el.innerHTML = `
-    <div class="stat"><div class="n" style="color:#FACC15">${listaCorridas().filter(c=>c.status==='aberta').length}</div><div class="l"> Pedidos abertos</div></div>
-    <div class="stat"><div class="n" style="color:#00E676">${listaCorridas().filter(c=>c.status==='aceita'||c.status==='em_rota').length}</div><div class="l">🛵 Em corrida</div></div>
-    ${travadas.length ? `<div class="stat" style="border-color:rgba(239,68,68,.5)"><div class="n" style="color:#EF4444">${travadas.length}</div><div class="l">🚨 Travadas</div></div>` : ''}
-    <div class="stat"><div class="n" style="color:#3B82F6">${Object.keys(POS).length}</div><div class="l">📍 Posições ativas</div></div>
-    <div class="stat"><div class="n" style="color:#FFB300">${listaPontos().length}</div><div class="l">📌 Pontos marcados</div></div>
-  `;
+  el.innerHTML = '<div class="stat"><div class="n" style="color:#FACC15">'+listaCorridas().filter(c=>c.status==='aberta').length+'</div><div class="l"> Pedidos abertos</div></div><div class="stat"><div class="n" style="color:#00E676">'+listaCorridas().filter(c=>c.status==='aceita'||c.status==='em_rota').length+'</div><div class="l">🛵 Em corrida</div></div>'+(travadas.length ? '<div class="stat" style="border-color:rgba(239,68,68,.5)"><div class="n" style="color:#EF4444">'+travadas.length+'</div><div class="l"> Travadas</div></div>' : '')+'<div class="stat"><div class="n" style="color:#3B82F6">'+Object.keys(POS).length+'</div><div class="l">📍 Posições ativas</div></div><div class="stat"><div class="n" style="color:#FFB300">'+listaPontos().length+'</div><div class="l">📌 Pontos marcados</div></div>';
 }
 
 window.toggleModoPonto = () => {
@@ -501,11 +420,11 @@ window.toggleModoPonto = () => {
   if(modoAdicionarPonto){
     btn.className = 'btn amber';
     btn.textContent = '📌 Modo Adicionar ATIVO — clique no mapa';
-    toast(' Clique no mapa onde quer marcar um ponto');
+    toast('📌 Clique no mapa onde quer marcar um ponto');
     if(mapa) mapa.getContainer().style.cursor = 'crosshair';
   } else {
     btn.className = 'btn blue';
-    btn.textContent = ' Adicionar ponto de interesse';
+    btn.textContent = '📌 Adicionar ponto de interesse';
     if(mapa) mapa.getContainer().style.cursor = '';
   }
 };
@@ -513,15 +432,10 @@ window.toggleModoPonto = () => {
 window.centralizarMapa = () => {
   if(!mapa) return;
   const pontos = [];
-  listaCorridas().forEach(c=>{
-    if(c.origLat) pontos.push([c.origLat,c.origLng]);
-    if(c.destLat) pontos.push([c.destLat,c.destLng]);
-  });
+  listaCorridas().forEach(c=>{ if(c.origLat) pontos.push([c.origLat,c.origLng]); if(c.destLat) pontos.push([c.destLat,c.destLng]); });
   Object.values(POS).forEach(p=>{ if(p.lat) pontos.push([p.lat,p.lng]); });
   listaPontos().forEach(p=>{ if(p.lat) pontos.push([p.lat,p.lng]); });
-  if(pontos.length > 0){
-    try{ mapa.fitBounds(L.latLngBounds(pontos),{padding:[40,40],maxZoom:14}); }catch(e){}
-  }
+  if(pontos.length > 0){ try{ mapa.fitBounds(L.latLngBounds(pontos),{padding:[40,40],maxZoom:14}); }catch(e){} }
 };
 
 window.forcarAtualizacaoMapa = async () => {
@@ -546,58 +460,14 @@ function abrirModalPonto(){
   if(!cliqueTemp) return;
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
-  overlay.innerHTML = `
-    <div class="modal">
-      <h3>📌 Novo Ponto de Interesse</h3>
-      <div class="lbl">Nome do local *</div>
-      <input class="inp" id="pontoNome" placeholder="Ex: Hospital São Lucas" style="margin-bottom:10px"/>
-      <div class="lbl">Observação (opcional)</div>
-      <input class="inp" id="pontoObs" placeholder="Ex: Entrada principal" style="margin-bottom:10px"/>
-      <div class="lbl">Cor do marcador</div>
-      <div class="cores-opcoes">
-        <div class="cor-opcao sel" data-cor="#EF4444" style="background:#EF4444"></div>
-        <div class="cor-opcao" data-cor="#3B82F6" style="background:#3B82F6"></div>
-        <div class="cor-opcao" data-cor="#00E676" style="background:#00E676"></div>
-        <div class="cor-opcao" data-cor="#FACC15" style="background:#FACC15"></div>
-        <div class="cor-opcao" data-cor="#A855F7" style="background:#A855F7"></div>
-        <div class="cor-opcao" data-cor="#EC4899" style="background:#EC4899"></div>
-      </div>
-      <div class="lbl">Ícone</div>
-      <div class="icones-opcoes">
-        <div class="icone-opcao sel" data-icone="">📍</div>
-        <div class="icone-opcao" data-icone="">🏥</div>
-        <div class="icone-opcao" data-icone="">🏫</div>
-        <div class="icone-opcao" data-icone="">🏪</div>
-        <div class="icone-opcao" data-icone="">⛽</div>
-        <div class="icone-opcao" data-icone="">🚔</div>
-        <div class="icone-opcao" data-icone="">🏁</div>
-        <div class="icone-opcao" data-icone="⭐">⭐</div>
-      </div>
-      <button class="btn green" style="width:100%" onclick="salvarPonto()">💾 Salvar ponto</button>
-      <button class="btn ghost" style="width:100%;margin-top:8px" onclick="fecharModalPonto()">Cancelar</button>
-    </div>
-  `;
+  overlay.innerHTML = '<div class="modal"><h3>📌 Novo Ponto de Interesse</h3><div class="lbl">Nome do local *</div><input class="inp" id="pontoNome" placeholder="Ex: Hospital São Lucas" style="margin-bottom:10px"/><div class="lbl">Observação (opcional)</div><input class="inp" id="pontoObs" placeholder="Ex: Entrada principal" style="margin-bottom:10px"/><div class="lbl">Cor do marcador</div><div class="cores-opcoes"><div class="cor-opcao sel" data-cor="#EF4444" style="background:#EF4444"></div><div class="cor-opcao" data-cor="#3B82F6" style="background:#3B82F6"></div><div class="cor-opcao" data-cor="#00E676" style="background:#00E676"></div><div class="cor-opcao" data-cor="#FACC15" style="background:#FACC15"></div><div class="cor-opcao" data-cor="#A855F7" style="background:#A855F7"></div><div class="cor-opcao" data-cor="#EC4899" style="background:#EC4899"></div></div><div class="lbl">Ícone</div><div class="icones-opcoes"><div class="icone-opcao sel" data-icone="📍">📍</div><div class="icone-opcao" data-icone="🏥">🏥</div><div class="icone-opcao" data-icone="🏫">🏫</div><div class="icone-opcao" data-icone="🏪"></div><div class="icone-opcao" data-icone="⛽">⛽</div><div class="icone-opcao" data-icone="🚔">🚔</div><div class="icone-opcao" data-icone="">🏁</div><div class="icone-opcao" data-icone="⭐">⭐</div></div><button class="btn green" style="width:100%" onclick="salvarPonto()">💾 Salvar ponto</button><button class="btn ghost" style="width:100%;margin-top:8px" onclick="fecharModalPonto()">Cancelar</button></div>';
   document.body.appendChild(overlay);
   overlay.addEventListener('click', (e) => { if(e.target === overlay) fecharModalPonto(); });
-  overlay.querySelectorAll('.cor-opcao').forEach(el => {
-    el.addEventListener('click', () => {
-      overlay.querySelectorAll('.cor-opcao').forEach(x => x.classList.remove('sel'));
-      el.classList.add('sel');
-    });
-  });
-  overlay.querySelectorAll('.icone-opcao').forEach(el => {
-    el.addEventListener('click', () => {
-      overlay.querySelectorAll('.icone-opcao').forEach(x => x.classList.remove('sel'));
-      el.classList.add('sel');
-    });
-  });
+  overlay.querySelectorAll('.cor-opcao').forEach(el => { el.addEventListener('click', () => { overlay.querySelectorAll('.cor-opcao').forEach(x => x.classList.remove('sel')); el.classList.add('sel'); }); });
+  overlay.querySelectorAll('.icone-opcao').forEach(el => { el.addEventListener('click', () => { overlay.querySelectorAll('.icone-opcao').forEach(x => x.classList.remove('sel')); el.classList.add('sel'); }); });
 }
 
-window.fecharModalPonto = () => {
-  const overlay = document.querySelector('.modal-overlay');
-  if(overlay) overlay.remove();
-  cliqueTemp = null;
-};
+window.fecharModalPonto = () => { const overlay = document.querySelector('.modal-overlay'); if(overlay) overlay.remove(); cliqueTemp = null; };
 
 window.salvarPonto = async () => {
   const nome = (document.getElementById('pontoNome').value||'').trim();
@@ -605,18 +475,11 @@ window.salvarPonto = async () => {
   const obs = (document.getElementById('pontoObs').value||'').trim();
   const cor = document.querySelector('.cor-opcao.sel')?.dataset.cor || '#EF4444';
   const icone = document.querySelector('.icone-opcao.sel')?.dataset.icone || '';
-  
   const id = 'ponto-' + Date.now();
-  const ponto = {
-    id, nome, obs, cor, icone,
-    lat: cliqueTemp.lat, lng: cliqueTemp.lng,
-    criadoEm: new Date().toISOString(),
-    criadoPor: sessao.nome
-  };
-  
+  const ponto = { id, nome, obs, cor, icone, lat: cliqueTemp.lat, lng: cliqueTemp.lng, criadoEm: new Date().toISOString(), criadoPor: sessao.nome };
   try{
     await api('/pontos_interesse/'+id+'.json','PUT', ponto);
-    toast('📌 Ponto salvo!');
+    toast(' Ponto salvo!');
     fecharModalPonto();
     modoAdicionarPonto = false;
     await loadAll();
@@ -627,18 +490,11 @@ window.salvarPonto = async () => {
 
 window.excluirPonto = async (id) => {
   if(!confirm('Excluir este ponto de interesse?')) return;
-  try{
-    await api('/pontos_interesse/'+id+'.json','DELETE');
-    toast('🗑️ Ponto excluído.');
-    await loadAll();
-    sincronizarMapa();
-    renderTodasAbas();
-  }catch(e){ toast('Erro: '+e.message,true); }
+  try{ await api('/pontos_interesse/'+id+'.json','DELETE'); toast('🗑️ Ponto excluído.'); await loadAll(); sincronizarMapa(); renderTodasAbas(); }catch(e){ toast('Erro: '+e.message,true); }
 };
 
 function sincronizarMapa(){
   if(!mapa || !mapaInicializado) return;
-
   const cs = listaCorridas();
   const pontosAtuais = new Set();
   const travadasIds = new Set(detectarCorridasTravadas().map(t=>t.corrida.id));
@@ -647,17 +503,17 @@ function sincronizarMapa(){
     if(c.origLat && c.origLng){
       const key = 'aberta-'+c.id;
       pontosAtuais.add(key);
-      const html = `<div style="background:#FACC15;color:#000;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.5)">📍</div>`;
-      const tooltip = `📡 #${c.id.slice(-6)} • ${c.passageiroNome||'—'}\n📍 ${c.origEndereco||''}\n ${c.destEndereco||''}\n ${c.distanciaKm||'—'} km`;
-      const popup = `<div class="mapa-info"><b>📡 PEDIDO ABERTO</b><br/><b>#${esc(c.id.slice(-6))}</b> • ${badgeSt(c.status)}<br/>🙋 ${esc(c.passageiroNome||'—')}<br/> ${esc(c.passageiroTel||'—')}<br/>📍 ${esc(c.origEndereco||'').slice(0,50)}<br/>🏁 ${esc(c.destEndereco||'').slice(0,50)}<br/> ${c.distanciaKm||'—'} km<br/>🕐 ${tempoAtras(c.criadaEm)}<br/><button class="btn red mini" onclick="cancelarDoMapa('${c.id}')">🗑️ Cancelar/Apagar pedido</button></div>`;
+      const html = '<div style="background:#FACC15;color:#000;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.5)">📍</div>';
+      const tooltip = '📡 #'+c.id.slice(-6)+' • '+(c.passageiroNome||'—')+'\n📍 '+(c.origEndereco||'')+'\n🏁 '+(c.destEndereco||'')+'\n '+(c.distanciaKm||'—')+' km';
+      const popup = '<div class="mapa-info"><b>📡 PEDIDO ABERTO</b><br/><b>#'+esc(c.id.slice(-6))+'</b> • '+badgeSt(c.status)+'<br/>🙋 '+esc(c.passageiroNome||'—')+'<br/>📞 '+esc(c.passageiroTel||'—')+'<br/>📍 '+esc(c.origEndereco||'').slice(0,50)+'<br/>🏁 '+esc(c.destEndereco||'').slice(0,50)+'<br/>📏 '+(c.distanciaKm||'—')+' km<br/>🕐 '+tempoAtras(c.criadaEm)+'<br/><button class="btn red mini" onclick="cancelarDoMapa(\''+c.id+'\')">🗑️ Cancelar/Apagar pedido</button></div>';
       atualizarOuCriarMarcador(key, [c.origLat,c.origLng], html, tooltip, popup);
     }
     if(c.destLat && c.destLng){
       const key = 'dest-'+c.id;
       pontosAtuais.add(key);
-      const html = `<div style="background:#EF4444;color:#fff;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.5)">🏁</div>`;
-      const tooltip = `🏁 Destino #${c.id.slice(-6)}\n${c.destEndereco||''}`;
-      const popup = `<div class="mapa-info"><b> DESTINO</b><br/><b>#${esc(c.id.slice(-6))}</b><br/>${esc(c.destEndereco||'').slice(0,60)}<br/><button class="btn red mini" onclick="cancelarDoMapa('${c.id}')">🗑️ Cancelar pedido</button></div>`;
+      const html = '<div style="background:#EF4444;color:#fff;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.5)"></div>';
+      const tooltip = '🏁 Destino #'+c.id.slice(-6)+'\n'+(c.destEndereco||'');
+      const popup = '<div class="mapa-info"><b>🏁 DESTINO</b><br/><b>#'+esc(c.id.slice(-6))+'</b><br/>'+esc(c.destEndereco||'').slice(0,60)+'<br/><button class="btn red mini" onclick="cancelarDoMapa(\''+c.id+'\')">🗑️ Cancelar pedido</button></div>';
       atualizarOuCriarMarcador(key, [c.destLat,c.destLng], html, tooltip, popup);
     }
   });
@@ -669,20 +525,15 @@ function sincronizarMapa(){
       const cor = estaTravada ? '#EF4444' : (c.status==='em_rota' ? '#00E676' : '#3B82F6');
       const key = 'moto-'+c.id;
       pontosAtuais.add(key);
-      const html = `<div style="background:${cor};color:#fff;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.5);${estaTravada?'animation:pulse 1.5s infinite':''}">🏍️</div>`;
-      const tooltip = `🏍️ ${c.motoqueiroNome||'Motoqueiro'}${estaTravada?' 🚨 TRAVADO':''}\n🙋 ${c.passageiroNome||'—'}\n💰 ${c.valorAceito?brl(c.valorAceito):'—'}\n${badgeSt(c.status).replace(/<[^>]*>/g,'')}`;
-      const popup = `<div class="mapa-info"><b>🛵 EM CORRIDA</b> ${badgeSt(c.status)}${estaTravada?' <span class="badge b-trav">TRAVADO</span>':''}<br/><b>#${esc(c.id.slice(-6))}</b><br/>🏍️ ${esc(c.motoqueiroNome||'—')}<br/>🙋 ${esc(c.passageiroNome||'—')}<br/>💰 ${c.valorAceito?brl(c.valorAceito):'—'}<br/>🕐 ${tempoAtras(c.criadaEm)}<br/><button class="btn green mini" onclick="forcarConclusao('${c.id}')">✅ Forçar conclusão</button><br/><button class="btn red mini" onclick="abrirModalCancelar('${c.id}')">❌ Cancelar corrida</button></div>`;
+      const html = '<div style="background:'+cor+';color:#fff;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.5);'+(estaTravada?'animation:pulse 1.5s infinite':'')+'">🏍️</div>';
+      const tooltip = '🏍️ '+(c.motoqueiroNome||'Motoqueiro')+(estaTravada?' 🚨 TRAVADO':'')+'\n🙋 '+(c.passageiroNome||'—')+'\n💰 '+(c.valorAceito?brl(c.valorAceito):'—')+'\n'+badgeSt(c.status).replace(/<[^>]*>/g,'');
+      const popup = '<div class="mapa-info"><b>🛵 EM CORRIDA</b> '+badgeSt(c.status)+(estaTravada?' <span class="badge b-trav">TRAVADO</span>':'')+'<br/><b>#'+esc(c.id.slice(-6))+'</b><br/>️ '+esc(c.motoqueiroNome||'—')+'<br/>🙋 '+esc(c.passageiroNome||'—')+'<br/>💰 '+(c.valorAceito?brl(c.valorAceito):'—')+'<br/>🕐 '+tempoAtras(c.criadaEm)+'<br/><button class="btn green mini" onclick="forcarConclusao(\''+c.id+'\')">✅ Forçar conclusão</button><br/><button class="btn red mini" onclick="abrirModalCancelar(\''+c.id+'\')">❌ Cancelar corrida</button></div>';
       atualizarOuCriarMarcador(key, [pos.lat,pos.lng], html, tooltip, popup);
-      
       if(c.destLat && c.destLng){
         const keyLinha = 'linha-'+c.id;
         pontosAtuais.add(keyLinha);
-        if(marcadoresMapa[keyLinha]){
-          marcadoresMapa[keyLinha].setLatLngs([[pos.lat,pos.lng],[c.destLat,c.destLng]]);
-        } else {
-          const linha = L.polyline([[pos.lat,pos.lng],[c.destLat,c.destLng]],{color:cor,weight:3,dashArray:'6 6',opacity:.7}).addTo(mapa);
-          marcadoresMapa[keyLinha] = linha;
-        }
+        if(marcadoresMapa[keyLinha]){ marcadoresMapa[keyLinha].setLatLngs([[pos.lat,pos.lng],[c.destLat,c.destLng]]); }
+        else { const linha = L.polyline([[pos.lat,pos.lng],[c.destLat,c.destLng]],{color:cor,weight:3,dashArray:'6 6',opacity:.7}).addTo(mapa); marcadoresMapa[keyLinha] = linha; }
       }
     }
   });
@@ -691,9 +542,9 @@ function sincronizarMapa(){
     if(p.lat && p.lng){
       const key = 'ponto-'+p.id;
       pontosAtuais.add(key);
-      const html = `<div style="background:${p.cor||'#EF4444'};color:#fff;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.5)">${p.icone||''}</div>`;
-      const tooltip = `📌 ${p.nome}${p.obs?' — '+p.obs:''}`;
-      const popup = `<div class="mapa-info"><b>📌 ${esc(p.nome)}</b>${p.obs?'<br/><small>'+esc(p.obs)+'</small>':''}<br/><small style="color:#8B98A5">Adicionado por ${esc(p.criadoPor||'admin')}</small><br/><button class="btn red mini" onclick="excluirPonto('${p.id}')">️ Excluir ponto</button></div>`;
+      const html = '<div style="background:'+(p.cor||'#EF4444')+';color:#fff;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.5)">'+(p.icone||'')+'</div>';
+      const tooltip = '📌 '+p.nome+(p.obs?' — '+p.obs:'');
+      const popup = '<div class="mapa-info"><b>📌 '+esc(p.nome)+'</b>'+(p.obs?'<br/><small>'+esc(p.obs)+'</small>':'')+'<br/><small style="color:#8B98A5">Adicionado por '+esc(p.criadoPor||'admin')+'</small><br/><button class="btn red mini" onclick="excluirPonto(\''+p.id+'\')">🗑️ Excluir ponto</button></div>';
       atualizarOuCriarMarcador(key, [p.lat,p.lng], html, tooltip, popup);
     }
   });
@@ -704,36 +555,27 @@ function sincronizarMapa(){
     let ultimaPos = null;
     Object.entries(POS).forEach(([cid,p])=>{
       const corrida = C[cid];
-      if(corrida && corrida.motoqueiroId === m.id && p && p.lat){
-        if(!ultimaPos || new Date(p.ts) > new Date(ultimaPos.ts)) ultimaPos = p;
-      }
+      if(corrida && corrida.motoqueiroId === m.id && p && p.lat){ if(!ultimaPos || new Date(p.ts) > new Date(ultimaPos.ts)) ultimaPos = p; }
     });
     if(ultimaPos && ultimaPos.lat){
       const key = 'online-'+m.id;
       pontosAtuais.add(key);
-      const html = `<div style="background:#10B981;color:#fff;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4);opacity:.8">🏍️</div>`;
-      const tooltip = `🟢 ${m.nome}\n📞 ${m.telefone}\n ${m.modelo} ${m.placa}`;
-      const popup = `<div class="mapa-info"><b>🟢 MOTOQUEIRO ONLINE</b><br/>🏍️ ${esc(m.nome||'—')}<br/>📞 ${esc(m.telefone||'—')}<br/>🛵 ${esc(m.modelo||'—')} ${esc(m.placa||'')}<br/> Última posição: ${dataHoraFmt(ultimaPos.ts)}</div>`;
+      const html = '<div style="background:#10B981;color:#fff;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4);opacity:.8">🏍️</div>';
+      const tooltip = '🟢 '+m.nome+'\n📞 '+m.telefone+'\n🛵 '+m.modelo+' '+m.placa;
+      const popup = '<div class="mapa-info"><b>🟢 MOTOQUEIRO ONLINE</b><br/>🏍️ '+esc(m.nome||'—')+'<br/>📞 '+esc(m.telefone||'—')+'<br/> '+esc(m.modelo||'—')+' '+esc(m.placa||'')+'<br/> Última posição: '+dataHoraFmt(ultimaPos.ts)+'</div>';
       atualizarOuCriarMarcador(key, [ultimaPos.lat,ultimaPos.lng], html, tooltip, popup);
     }
   });
 
   Object.keys(marcadoresMapa).forEach(key => {
-    if(!pontosAtuais.has(key)){
-      try{ mapa.removeLayer(marcadoresMapa[key]); }catch(e){}
-      delete marcadoresMapa[key];
-    }
+    if(!pontosAtuais.has(key)){ try{ mapa.removeLayer(marcadoresMapa[key]); }catch(e){} delete marcadoresMapa[key]; }
   });
 
   if(primeiraCargaMapa){
     primeiraCargaMapa = false;
     const todosPontos = [];
-    Object.values(marcadoresMapa).forEach(m => {
-      if(m.getLatLng) todosPontos.push(m.getLatLng());
-    });
-    if(todosPontos.length > 0){
-      try{ mapa.fitBounds(L.latLngBounds(todosPontos),{padding:[50,50],maxZoom:13}); }catch(e){}
-    }
+    Object.values(marcadoresMapa).forEach(m => { if(m.getLatLng) todosPontos.push(m.getLatLng()); });
+    if(todosPontos.length > 0){ try{ mapa.fitBounds(L.latLngBounds(todosPontos),{padding:[50,50],maxZoom:13}); }catch(e){} }
   }
 }
 
@@ -741,208 +583,72 @@ function atualizarOuCriarMarcador(key, latlng, html, tooltip, popup){
   if(marcadoresMapa[key]){
     try{
       marcadoresMapa[key].setLatLng(latlng);
-      if(marcadoresMapa[key].getTooltip){
-        const tt = marcadoresMapa[key].getTooltip();
-        if(tt) tt.setContent(tooltip);
-      }
-      if(marcadoresMapa[key].getPopup){
-        const pp = marcadoresMapa[key].getPopup();
-        if(pp) pp.setContent(popup);
-      }
-    }catch(e){
-      try{ mapa.removeLayer(marcadoresMapa[key]); }catch(e2){}
-      delete marcadoresMapa[key];
-      criarMarcador(key, latlng, html, tooltip, popup);
-    }
-  } else {
-    criarMarcador(key, latlng, html, tooltip, popup);
-  }
+      if(marcadoresMapa[key].getTooltip){ const tt = marcadoresMapa[key].getTooltip(); if(tt) tt.setContent(tooltip); }
+      if(marcadoresMapa[key].getPopup){ const pp = marcadoresMapa[key].getPopup(); if(pp) pp.setContent(popup); }
+    }catch(e){ try{ mapa.removeLayer(marcadoresMapa[key]); }catch(e2){} delete marcadoresMapa[key]; criarMarcador(key, latlng, html, tooltip, popup); }
+  } else { criarMarcador(key, latlng, html, tooltip, popup); }
 }
 
 function criarMarcador(key, latlng, html, tooltip, popup){
   try{
-    const mk = L.marker(latlng, {
-      icon: L.divIcon({ html, className:'', iconSize:[36,36], iconAnchor:[18,18] })
-    }).addTo(mapa);
+    const mk = L.marker(latlng, { icon: L.divIcon({ html, className:'', iconSize:[36,36], iconAnchor:[18,18] }) }).addTo(mapa);
     mk.bindTooltip(tooltip, { direction:'top', offset:[0,-10], opacity:.95 });
     mk.bindPopup(popup, { maxWidth: 280 });
     marcadoresMapa[key] = mk;
-  }catch(e){
-    console.error('Erro ao criar marcador:', e);
-  }
+  }catch(e){ console.error('Erro ao criar marcador:', e); }
 }
 
-window.forcarConclusao = async (cid) => {
-  const c = C[cid];
-  if(!c) return;
-  const motivo = prompt(`Forçar conclusão da corrida #${cid.slice(-6)}?\n\nMotoqueiro: ${c.motoqueiroNome||'—'}\nPassageiro: ${c.passageiroNome||'—'}\nValor: ${brl(c.valorAceito||0)}\n\nDigite o MOTIVO (opcional):`, 'Finalizada pelo administrador');
-  if(motivo === null) return;
-  
-  try{
-    await api('/corridas/'+cid+'.json','PATCH',{ 
-      status: 'concluida', 
-      concluidaEm: new Date().toISOString(),
-      forcadaPor: sessao.nome,
-      motivoForca: motivo || 'Finalizada pelo administrador',
-      pagamento: c.pagamento || {metodo:'dinheiro', status:'dinheiro'}
-    });
-    toast('✅ Corrida forçada para CONCLUÍDA!');
-    await loadAll();
-    sincronizarMapa();
-    renderTodasAbas();
-  }catch(e){ toast('Erro: '+e.message,true); }
-};
-
-window.abrirModalCancelar = (cid) => {
-  const c = C[cid];
-  if(!c) return;
-  const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay';
-  overlay.innerHTML = `
-    <div class="modal">
-      <h3>❌ Cancelar Corrida #${cid.slice(-6)}</h3>
-      <div style="font-size:12px;color:#9CA3AF;margin-bottom:12px">
-        🏍️ ${esc(c.motoqueiroNome||'—')} •  ${esc(c.passageiroNome||'—')}<br/>
-        💰 ${brl(c.valorAceito||0)} • ${badgeSt(c.status)}
-      </div>
-      <div class="lbl">Motivo do cancelamento *</div>
-      <select class="inp" id="cancelMotivo" style="margin-bottom:10px">
-        <option value="Motoqueiro não compareceu">Motoqueiro não compareceu</option>
-        <option value="Motoqueiro abandonou a corrida">Motoqueiro abandonou a corrida</option>
-        <option value="Passageiro desistiu">Passageiro desistiu</option>
-        <option value="Problema técnico (GPS travou)">Problema técnico (GPS travou)</option>
-        <option value="Acidente / emergência">Acidente / emergência</option>
-        <option value="Outro motivo">Outro motivo</option>
-      </select>
-      <div class="lbl">Observação adicional (opcional)</div>
-      <input class="inp" id="cancelObs" placeholder="Detalhes adicionais..." style="margin-bottom:14px"/>
-      <button class="btn red" style="width:100%" onclick="confirmarCancelamento('${cid}')">❌ Confirmar cancelamento</button>
-      <button class="btn ghost" style="width:100%;margin-top:8px" onclick="this.closest('.modal-overlay').remove()">Voltar</button>
-    </div>
-  `;
-  document.body.appendChild(overlay);
-  overlay.addEventListener('click', (e) => { if(e.target === overlay) overlay.remove(); });
-};
-
-window.confirmarCancelamento = async (cid) => {
-  const motivo = document.getElementById('cancelMotivo').value;
-  const obs = (document.getElementById('cancelObs').value||'').trim();
-  if(!motivo){ toast('Selecione o motivo.',true); return; }
-  
-  try{
-    await api('/corridas/'+cid+'.json','PATCH',{ 
-      status: 'cancelada',
-      canceladaEm: new Date().toISOString(),
-      canceladaPor: sessao.nome,
-      motivoCancelamento: motivo + (obs ? ' — '+obs : '')
-    });
-    toast('❌ Corrida cancelada!');
-    document.querySelector('.modal-overlay')?.remove();
-    await loadAll();
-    sincronizarMapa();
-    renderTodasAbas();
-  }catch(e){ toast('Erro: '+e.message,true); }
-};
-
-window.cancelarDoMapa = async (cid) => {
-  if(!confirm('Apagar esta corrida? Ela sumirá da tela de todos os motoqueiros.')) return;
-  try{ 
-    await api('/corridas/'+cid+'.json','DELETE'); 
-    toast('🗑️ Corrida apagada!'); 
-    await loadAll(); 
-    sincronizarMapa(); 
-    renderTodasAbas(); 
-  }catch(e){ toast('Erro: '+e.message,true); }
-};
-
-function renderPontos(){
-  const el = document.getElementById('aba-pontos');
-  if(!el) return;
-  const pontos = listaPontos().sort((a,b)=>(a.nome||'').localeCompare(b.nome||''));
-  el.innerHTML = `
-    <div class="card" style="background:rgba(168,85,247,.08);border-color:rgba(168,85,247,.4)">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-        <span style="font-size:28px">📌</span>
-        <div>
-          <b style="font-size:15px">Pontos de Interesse</b>
-          <p style="font-size:11px;color:#A855F7;margin:0">Marque locais importantes no mapa (hospitais, escolas, pontos de encontro)</p>
-        </div>
-      </div>
-      <button class="btn amber" onclick="mudarAba('mapa');setTimeout(()=>{modoAdicionarPonto=true;toggleModoPonto();},100)">🗺️ Ir para o mapa e adicionar</button>
-    </div>
-    <div class="card">
-      <div class="lbl" style="margin-bottom:8px">📌 Pontos salvos (${pontos.length})</div>
-      ${pontos.map(p=>`
-        <div class="ponto-item">
-          <div class="ponto-cor" style="background:${p.cor}"></div>
-          <div style="font-size:20px">${p.icone}</div>
-          <div class="ponto-info">
-            <b>${esc(p.nome)}</b>
-            <small>${p.obs?esc(p.obs)+' • ':''}📍 ${p.lat.toFixed(4)}, ${p.lng.toFixed(4)} • por ${esc(p.criadoPor||'admin')}</small>
-          </div>
-          <button class="btn red mini" onclick="excluirPonto('${p.id}')">🗑️</button>
-        </div>
-      `).join('') || '<p style="color:#6B7280;font-size:12px;text-align:center">Nenhum ponto marcado ainda.</p>'}
-    </div>
-  `;
-}
-
+// 🆕 CORRIDAS DE TESTE (com estado preservado)
 function renderTestes(){
   const el = document.getElementById('aba-testes');
   if(!el) return;
   const motoqueirosAtivos = listaMoto().filter(m => !m.bloqueado);
-  el.innerHTML = `
-    <div class="card" style="background:rgba(168,85,247,.08);border:1px solid rgba(168,85,247,.4);border-radius:12px;padding:16px;margin-bottom:16px">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-        <span style="font-size:28px">🧪</span>
-        <div><b style="font-size:16px;color:#E6EDF3">Criar Corrida de Teste Direta</b><p style="font-size:12px;color:#A855F7;margin:0">A corrida será enviada APENAS para o motoqueiro selecionado, sem aparecer no feed dos outros.</p></div>
-      </div>
-      <div class="lbl">Selecione o Motoqueiro de Teste *</div>
-      <select class="inp" id="testMotoId" style="margin-bottom:12px">
-        <option value="">-- Escolha um motoqueiro --</option>
-        ${motoqueirosAtivos.map(m => `<option value="${m.id}">${esc(m.nome)} (${esc(m.telefone)}) - ${esc(m.placa)}</option>`).join('')}
-      </select>
-      <div class="grid2" style="margin-bottom:12px">
-        <div><div class="lbl">Nome do Passageiro (Teste)</div><input class="inp" id="testPassNome" value="Cliente Teste Admin"/></div>
-        <div><div class="lbl">Telefone do Passageiro</div><input class="inp" id="testPassTel" value="00000000000"/></div>
-      </div>
-      <div class="grid2" style="margin-bottom:12px">
-        <div><div class="lbl">Endereço de Origem</div><input class="inp" id="testOrigem" value="Local de Teste - Origem"/></div>
-        <div><div class="lbl">Endereço de Destino</div><input class="inp" id="testDestino" value="Local de Teste - Destino"/></div>
-      </div>
-      <div class="lbl">Valor da Corrida (R$)</div>
-      <input class="inp" id="testValor" type="number" step="0.5" value="15.00" style="margin-bottom:16px"/>
-      <button class="btn green" style="width:100%" onclick="criarCorridaTeste()"> Enviar Corrida Direta para o Motoqueiro</button>
-    </div>
-    <div class="card"><div class="lbl" style="margin-bottom:8px">📜 Histórico de Corridas de Teste</div>
-      ${listaCorridas().filter(c=>c.isTeste).sort((a,b)=>new Date(b.criadaEm)-new Date(a.criadaEm)).map(c=>`
-        <div style="display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px dashed rgba(255,255,255,.06);font-size:12px">
-          <span><b style="color:#A855F7">[TESTE]</b> #${esc(c.id.slice(-6))} → ${esc(c.motoqueiroNome||'—')}</span>
-          <span>${badgeSt(c.status)} <b style="color:#00E676">${c.valorAceito?brl(c.valorAceito):''}</b></span>
-        </div>
-      `).join('') || '<p style="color:#6B7280;font-size:12px">Nenhuma corrida de teste criada ainda.</p>'}
-    </div>
-  `;
+  
+  let html = '<div class="card" style="background:rgba(168,85,247,.08);border:1px solid rgba(168,85,247,.4);border-radius:12px;padding:16px;margin-bottom:16px">';
+  html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><span style="font-size:28px">🧪</span><div><b style="font-size:16px;color:#E6EDF3">Criar Corrida de Teste Direta</b><p style="font-size:12px;color:#A855F7;margin:0">A corrida será enviada APENAS para o motoqueiro selecionado, sem aparecer no feed dos outros.</p></div></div>';
+  html += '<div class="lbl">Selecione o Motoqueiro de Teste *</div>';
+  html += '<select class="inp" id="testMotoId" style="margin-bottom:12px" onchange="estadoTeste.motoId=this.value"><option value="">-- Escolha um motoqueiro --</option>';
+  motoqueirosAtivos.forEach(m => {
+    const sel = m.id === estadoTeste.motoId ? ' selected' : '';
+    html += '<option value="'+m.id+'"'+sel+'>'+esc(m.nome)+' ('+esc(m.telefone)+') - '+esc(m.placa)+'</option>';
+  });
+  html += '</select>';
+  html += '<div class="grid2" style="margin-bottom:12px"><div><div class="lbl">Nome do Passageiro (Teste)</div><input class="inp" id="testPassNome" value="'+esc(estadoTeste.passNome)+'" oninput="estadoTeste.passNome=this.value"/></div>';
+  html += '<div><div class="lbl">Telefone do Passageiro</div><input class="inp" id="testPassTel" value="'+esc(estadoTeste.passTel)+'" oninput="estadoTeste.passTel=this.value"/></div></div>';
+  html += '<div class="grid2" style="margin-bottom:12px"><div><div class="lbl">Endereço de Origem</div><input class="inp" id="testOrigem" value="'+esc(estadoTeste.origem)+'" oninput="estadoTeste.origem=this.value"/></div>';
+  html += '<div><div class="lbl">Endereço de Destino</div><input class="inp" id="testDestino" value="'+esc(estadoTeste.destino)+'" oninput="estadoTeste.destino=this.value"/></div></div>';
+  html += '<div class="lbl">Valor da Corrida (R$)</div>';
+  html += '<input class="inp" id="testValor" type="number" step="0.5" value="'+esc(estadoTeste.valor)+'" oninput="estadoTeste.valor=this.value" style="margin-bottom:16px"/>';
+  html += '<button class="btn green" style="width:100%" onclick="criarCorridaTeste()">🚀 Enviar Corrida Direta para o Motoqueiro</button></div>';
+  
+  html += '<div class="card"><div class="lbl" style="margin-bottom:8px">📜 Histórico de Corridas de Teste</div>';
+  const testes = listaCorridas().filter(c=>c.isTeste).sort((a,b)=>new Date(b.criadaEm)-new Date(a.criadaEm));
+  if(testes.length === 0){
+    html += '<p style="color:#6B7280;font-size:12px">Nenhuma corrida de teste criada ainda.</p>';
+  } else {
+    testes.forEach(c => {
+      html += '<div style="display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px dashed rgba(255,255,255,.06);font-size:12px"><span><b style="color:#A855F7">[TESTE]</b> #'+esc(c.id.slice(-6))+' → '+esc(c.motoqueiroNome||'—')+'</span><span>'+badgeSt(c.status)+' <b style="color:#00E676">'+(c.valorAceito?brl(c.valorAceito):'')+'</b></span></div>';
+    });
+  }
+  html += '</div>';
+  
+  el.innerHTML = html;
 }
 
 window.criarCorridaTeste = async () => {
   const motoId = document.getElementById('testMotoId').value;
   if(!motoId){ toast('Selecione um motoqueiro.', true); return; }
   const moto = M[motoId];
-  const passageiroNome = document.getElementById('testPassNome').value || 'Cliente Teste';
-  const passageiroTel = document.getElementById('testPassTel').value || '00000000000';
-  const origem = document.getElementById('testOrigem').value || 'Origem de Teste';
-  const destino = document.getElementById('testDestino').value || 'Destino de Teste';
-  const valor = parseFloat(document.getElementById('testValor').value) || 10.00;
-
+  if(!moto){ toast('Motoqueiro não encontrado.', true); return; }
+  
   const cid = 'c-test-' + Date.now();
   const novaCorrida = {
-    id: cid, passageiroId: 'admin-test', passageiroNome, passageiroTel,
-    origLat: -22.9068, origLng: -43.1729, origEndereco: origem,
-    destLat: -22.9168, destLng: -43.1829, destEndereco: destino,
+    id: cid, passageiroId: 'admin-test', passageiroNome: estadoTeste.passNome, passageiroTel: estadoTeste.passTel,
+    origLat: -22.9068, origLng: -43.1729, origEndereco: estadoTeste.origem,
+    destLat: -22.9168, destLng: -43.1829, destEndereco: estadoTeste.destino,
     distanciaKm: 2.5, status: 'aceita',
     motoqueiroId: motoId, motoqueiroNome: moto.nome,
-    valorAceito: valor,
+    valorAceito: parseFloat(estadoTeste.valor) || 10.00,
     pagamento: { metodo: 'dinheiro', status: 'dinheiro' },
     criadaEm: new Date().toISOString(), aceitaEm: new Date().toISOString(),
     isTeste: true
@@ -950,119 +656,52 @@ window.criarCorridaTeste = async () => {
   try{
     await api('/corridas/'+cid+'.json', 'PUT', novaCorrida);
     toast('✅ Corrida de teste enviada para ' + moto.nome + '!');
-    document.getElementById('testPassNome').value = 'Cliente Teste Admin';
-    document.getElementById('testValor').value = '15.00';
     await loadAll(); renderTodasAbas();
   }catch(e){ toast('Erro: '+e.message, true); }
 };
 
-// ===================== ✅ PASSAGEIROS (COM BUSCA CORRIGIDA) =====================
+// ===================== PASSAGEIROS (COM BUSCA CORRIGIDA) =====================
 function renderPass(){
   const el = document.getElementById('aba-pass');
   if(!el) return;
-  const lista = listaPass().filter(p => 
-    (p.nome||'').toLowerCase().includes(buscaP.toLowerCase()) || 
-    (p.telefone||'').includes(buscaP)
-  ).sort((a,b)=>(a.nome||'').localeCompare(b.nome||''));
+  const lista = listaPass().filter(p => (p.nome||'').toLowerCase().includes(buscaP.toLowerCase()) || (p.telefone||'').includes(buscaP)).sort((a,b)=>(a.nome||'').localeCompare(b.nome||''));
   const corridasDe = id => listaCorridas().filter(c=>c.passageiroId===id && c.status==='concluida').length;
   
-  let html = `<div class="card"><div class="busca-box">
-    <input class="inp" id="buscaPassInput" placeholder="🔍 Buscar por nome ou telefone..." 
-           value="${esc(buscaP)}" autocomplete="off" 
-           oninput="buscaP=this.value;renderPass()"
-           style="flex:1"/>
-    <button class="btn ghost mini" onclick="limparBuscaPass()">✖ Limpar</button>
-  </div></div>`;
+  let html = '<div class="card"><div class="busca-box"><input class="inp" id="buscaPassInput" placeholder="🔍 Buscar por nome ou telefone..." value="'+esc(buscaP)+'" autocomplete="off" oninput="buscaP=this.value;renderPass()" style="flex:1"/><button class="btn ghost mini" onclick="limparBuscaPass()">✖ Limpar</button></div></div>';
   
   if(lista.length === 0){
     html += '<div class="card" style="text-align:center;color:#6B7280">Nenhum passageiro encontrado.</div>';
   } else {
     lista.forEach(p => {
-      html += `<div class="item">
-        <div class="head">
-          <div>
-            <div class="nome">🙋 ${esc(p.nome||'—')} ${p.bloqueado?'<span class="badge b-blq">BLOQUEADO</span>':'<span class="badge b-ok">ATIVO</span>'}</div>
-            <div class="sub">📞 ${esc(p.telefone||'—')} • desde ${dataFmt(p.criadoEm)} • ${corridasDe(p.id)} corrida(s) concluída(s)</div>
-          </div>
-        </div>
-        <div class="acts">
-          <button class="btn blue mini" onclick="abrirEditar('p','${p.id}')">✏️ Editar</button>
-          ${p.bloqueado 
-            ? `<button class="btn green mini" onclick="bloquear('p','${p.id}',false)">✅ Desbloquear</button>` 
-            : `<button class="btn red mini" onclick="bloquear('p','${p.id}',true)">🚫 Bloquear</button>`}
-          <button class="btn ghost mini" onclick="excluir('p','${p.id}','${esc(p.nome||'')}')">🗑️ Excluir</button>
-        </div>
-      </div>`;
+      html += '<div class="item"><div class="head"><div><div class="nome">🙋 '+esc(p.nome||'—')+' '+(p.bloqueado?'<span class="badge b-blq">BLOQUEADO</span>':'<span class="badge b-ok">ATIVO</span>')+'</div><div class="sub">📞 '+esc(p.telefone||'—')+' • desde '+dataFmt(p.criadoEm)+' • '+corridasDe(p.id)+' corrida(s) concluída(s)</div></div></div><div class="acts"><button class="btn blue mini" onclick="abrirEditar(\'p\',\''+p.id+'\')">✏️ Editar</button>'+(p.bloqueado ? '<button class="btn green mini" onclick="bloquear(\'p\',\''+p.id+'\',false)">✅ Desbloquear</button>' : '<button class="btn red mini" onclick="bloquear(\'p\',\''+p.id+'\',true)">🚫 Bloquear</button>')+'<button class="btn ghost mini" onclick="excluir(\'p\',\''+p.id+'\',\''+esc(p.nome||'')+'\')">🗑️ Excluir</button></div></div>';
     });
   }
-  
   el.innerHTML = html;
 }
 
-window.limparBuscaPass = () => {
-  buscaP = '';
-  const inp = document.getElementById('buscaPassInput');
-  if(inp) inp.value = '';
-  renderPass();
-};
+window.limparBuscaPass = () => { buscaP = ''; const inp = document.getElementById('buscaPassInput'); if(inp) inp.value = ''; renderPass(); };
 
-// ===================== ✅ MOTOQUEIROS (COM BUSCA CORRIGIDA) =====================
+// ===================== MOTOQUEIROS (COM BUSCA CORRIGIDA) =====================
 function renderMoto(){
   const el = document.getElementById('aba-moto');
   if(!el) return;
-  const lista = listaMoto().filter(m => 
-    (m.nome||'').toLowerCase().includes(buscaM.toLowerCase()) || 
-    (m.telefone||'').includes(buscaM) || 
-    (m.placa||'').toLowerCase().includes(buscaM.toLowerCase())
-  ).sort((a,b)=>(a.nome||'').localeCompare(b.nome||''));
-  const stats = id => { 
-    const cs = listaCorridas().filter(c=>c.motoqueiroId===id && c.status==='concluida'); 
-    return { n: cs.length, tot: cs.reduce((t,c)=>t+(parseFloat(c.valorAceito)||0),0) }; 
-  };
+  const lista = listaMoto().filter(m => (m.nome||'').toLowerCase().includes(buscaM.toLowerCase()) || (m.telefone||'').includes(buscaM) || (m.placa||'').toLowerCase().includes(buscaM.toLowerCase())).sort((a,b)=>(a.nome||'').localeCompare(b.nome||''));
+  const stats = id => { const cs = listaCorridas().filter(c=>c.motoqueiroId===id && c.status==='concluida'); return { n: cs.length, tot: cs.reduce((t,c)=>t+(parseFloat(c.valorAceito)||0),0) }; };
   
-  let html = `<div class="card"><div class="busca-box">
-    <input class="inp" id="buscaMotoInput" placeholder="🔍 Buscar por nome, telefone ou placa..." 
-           value="${esc(buscaM)}" autocomplete="off" 
-           oninput="buscaM=this.value;renderMoto()"
-           style="flex:1"/>
-    <button class="btn ghost mini" onclick="limparBuscaMoto()">✖ Limpar</button>
-  </div></div>`;
+  let html = '<div class="card"><div class="busca-box"><input class="inp" id="buscaMotoInput" placeholder="🔍 Buscar por nome, telefone ou placa..." value="'+esc(buscaM)+'" autocomplete="off" oninput="buscaM=this.value;renderMoto()" style="flex:1"/><button class="btn ghost mini" onclick="limparBuscaMoto()"> Limpar</button></div></div>';
   
   if(lista.length === 0){
     html += '<div class="card" style="text-align:center;color:#6B7280">Nenhum motoqueiro encontrado.</div>';
   } else {
     lista.forEach(m => {
       const s = stats(m.id);
-      html += `<div class="item">
-        <div class="head">
-          <div>
-            <div class="nome">🏍️ ${esc(m.nome||'—')} ${m.bloqueado?'<span class="badge b-blq">BLOQUEADO</span>':'<span class="badge b-ok">ATIVO</span>'}</div>
-            <div class="sub">📞 ${esc(m.telefone||'—')} • 🪪 CNH ${esc(m.cnh||'—')}<br/>
-            🛵 ${esc(m.modelo||'—')} ${esc(m.cor||'')} • placa ${esc(m.placa||'—')} (${esc(m.ano||'—')})<br/>
-            💠 PIX: ${esc(m.pix||'não cadastrada')} • desde ${dataFmt(m.criadoEm)}</div>
-            <div class="sub" style="color:#00E676;font-weight:700">✅ ${s.n} corrida(s) • 💰 ${brl(s.tot)}</div>
-          </div>
-        </div>
-        <div class="acts">
-          <button class="btn blue mini" onclick="abrirEditar('m','${m.id}')">✏️ Editar</button>
-          ${m.bloqueado 
-            ? `<button class="btn green mini" onclick="bloquear('m','${m.id}',false)">✅ Desbloquear</button>` 
-            : `<button class="btn red mini" onclick="bloquear('m','${m.id}',true)">🚫 Bloquear</button>`}
-          <button class="btn ghost mini" onclick="excluir('m','${m.id}','${esc(m.nome||'')}')">️ Excluir</button>
-        </div>
-      </div>`;
+      html += '<div class="item"><div class="head"><div><div class="nome">🏍️ '+esc(m.nome||'—')+' '+(m.bloqueado?'<span class="badge b-blq">BLOQUEADO</span>':'<span class="badge b-ok">ATIVO</span>')+'</div><div class="sub">📞 '+esc(m.telefone||'—')+' • 🪪 CNH '+esc(m.cnh||'—')+'<br/>🛵 '+esc(m.modelo||'—')+' '+esc(m.cor||'')+' • placa '+esc(m.placa||'—')+' ('+esc(m.ano||'—')+')<br/>💠 PIX: '+esc(m.pix||'não cadastrada')+' • desde '+dataFmt(m.criadoEm)+'</div><div class="sub" style="color:#00E676;font-weight:700">✅ '+s.n+' corrida(s) • 💰 '+brl(s.tot)+'</div></div></div><div class="acts"><button class="btn blue mini" onclick="abrirEditar(\'m\',\''+m.id+'\')">✏️ Editar</button>'+(m.bloqueado ? '<button class="btn green mini" onclick="bloquear(\'m\',\''+m.id+'\',false)">✅ Desbloquear</button>' : '<button class="btn red mini" onclick="bloquear(\'m\',\''+m.id+'\',true)">🚫 Bloquear</button>')+'<button class="btn ghost mini" onclick="excluir(\'m\',\''+m.id+'\',\''+esc(m.nome||'')+'\')">️ Excluir</button></div></div>';
     });
   }
-  
   el.innerHTML = html;
 }
 
-window.limparBuscaMoto = () => {
-  buscaM = '';
-  const inp = document.getElementById('buscaMotoInput');
-  if(inp) inp.value = '';
-  renderMoto();
-};
+window.limparBuscaMoto = () => { buscaM = ''; const inp = document.getElementById('buscaMotoInput'); if(inp) inp.value = ''; renderMoto(); };
 
 // ===================== EDITAR CADASTRO =====================
 window.abrirEditar = (tipo,id) => { 
@@ -1073,19 +712,15 @@ window.abrirEditar = (tipo,id) => {
   
   if(tipo==='p'){
     const d = P[id]||{};
-    overlay.innerHTML = `<div class="modal"><b style="font-size:15px">✏️ Editar passageiro</b><div class="lbl" style="margin-top:12px">Nome</div><input class="inp" id="eNome" value="${esc(d.nome||'')}" style="margin-bottom:10px"/><div class="lbl">Telefone</div><input class="inp" id="eTel" type="tel" value="${esc(d.telefone||'')}" style="margin-bottom:10px"/><div class="lbl">Nova senha (vazio = manter)</div><input class="inp" id="eSenha" type="password" style="margin-bottom:14px"/><button class="btn green" style="width:100%" onclick="salvarEditar()">💾 Salvar</button><button class="btn ghost" style="width:100%;margin-top:8px" onclick="fecharModalEditar()">← Voltar</button></div>`;
+    overlay.innerHTML = '<div class="modal"><b style="font-size:15px">✏️ Editar passageiro</b><div class="lbl" style="margin-top:12px">Nome</div><input class="inp" id="eNome" value="'+esc(d.nome||'')+'" style="margin-bottom:10px"/><div class="lbl">Telefone</div><input class="inp" id="eTel" type="tel" value="'+esc(d.telefone||'')+'" style="margin-bottom:10px"/><div class="lbl">Nova senha (vazio = manter)</div><input class="inp" id="eSenha" type="password" style="margin-bottom:14px"/><button class="btn green" style="width:100%" onclick="salvarEditar()">💾 Salvar</button><button class="btn ghost" style="width:100%;margin-top:8px" onclick="fecharModalEditar()">← Voltar</button></div>';
   } else {
     const d = M[id]||{};
-    overlay.innerHTML = `<div class="modal"><b style="font-size:15px">✏️ Editar motoqueiro</b><div class="lbl" style="margin-top:12px">Nome</div><input class="inp" id="eNome" value="${esc(d.nome||'')}" style="margin-bottom:10px"/><div class="grid2" style="margin-bottom:10px"><div><div class="lbl">Telefone</div><input class="inp" id="eTel" type="tel" value="${esc(d.telefone||'')}"/></div><div><div class="lbl">CNH</div><input class="inp" id="eCnh" value="${esc(d.cnh||'')}"/></div></div><div class="grid2" style="margin-bottom:10px"><div><div class="lbl">Placa</div><input class="inp" id="ePlaca" value="${esc(d.placa||'')}" style="text-transform:uppercase"/></div><div><div class="lbl">Cor</div><input class="inp" id="eCor" value="${esc(d.cor||'')}"/></div></div><div class="grid2" style="margin-bottom:10px"><div><div class="lbl">Modelo</div><input class="inp" id="eModelo" value="${esc(d.modelo||'')}"/></div><div><div class="lbl">Ano</div><input class="inp" id="eAno" type="number" value="${esc(d.ano||'')}"/></div></div><div class="lbl">Chave PIX</div><input class="inp" id="ePix" value="${esc(d.pix||'')}" style="margin-bottom:10px"/><div class="lbl">Nova senha (vazio = manter)</div><input class="inp" id="eSenha" type="password" style="margin-bottom:14px"/><button class="btn green" style="width:100%" onclick="salvarEditar()"> Salvar</button><button class="btn ghost" style="width:100%;margin-top:8px" onclick="fecharModalEditar()">← Voltar</button></div>`;
+    overlay.innerHTML = '<div class="modal"><b style="font-size:15px">✏️ Editar motoqueiro</b><div class="lbl" style="margin-top:12px">Nome</div><input class="inp" id="eNome" value="'+esc(d.nome||'')+'" style="margin-bottom:10px"/><div class="grid2" style="margin-bottom:10px"><div><div class="lbl">Telefone</div><input class="inp" id="eTel" type="tel" value="'+esc(d.telefone||'')+'"/></div><div><div class="lbl">CNH</div><input class="inp" id="eCnh" value="'+esc(d.cnh||'')+'"/></div></div><div class="grid2" style="margin-bottom:10px"><div><div class="lbl">Placa</div><input class="inp" id="ePlaca" value="'+esc(d.placa||'')+'" style="text-transform:uppercase"/></div><div><div class="lbl">Cor</div><input class="inp" id="eCor" value="'+esc(d.cor||'')+'"/></div></div><div class="grid2" style="margin-bottom:10px"><div><div class="lbl">Modelo</div><input class="inp" id="eModelo" value="'+esc(d.modelo||'')+'"/></div><div><div class="lbl">Ano</div><input class="inp" id="eAno" type="number" value="'+esc(d.ano||'')+'"/></div></div><div class="lbl">Chave PIX</div><input class="inp" id="ePix" value="'+esc(d.pix||'')+'" style="margin-bottom:10px"/><div class="lbl">Nova senha (vazio = manter)</div><input class="inp" id="eSenha" type="password" style="margin-bottom:14px"/><button class="btn green" style="width:100%" onclick="salvarEditar()">💾 Salvar</button><button class="btn ghost" style="width:100%;margin-top:8px" onclick="fecharModalEditar()">← Voltar</button></div>';
   }
   document.body.appendChild(overlay);
 };
 
-window.fecharModalEditar = () => { 
-  const m = document.getElementById('modalEditar');
-  if(m) m.remove();
-  editando = null; 
-};
+window.fecharModalEditar = () => { const m = document.getElementById('modalEditar'); if(m) m.remove(); editando = null; };
 
 window.salvarEditar = async () => {
   const {tipo,id} = editando;
@@ -1129,6 +764,7 @@ window.excluir = async (tipo,id,nome) => {
   try{ await api(`/${tipo==='p'?'passageiros':'motoqueiros'}/${id}.json`,'DELETE'); toast('🗑️ Registro excluído.'); await loadAll(); renderTodasAbas(); }catch(e){ toast('Erro: '+e.message,true); }
 };
 
+// ===================== CORRIDAS & RELATÓRIOS =====================
 function renderCor(){
   const el = document.getElementById('aba-cor');
   if(!el) return;
@@ -1141,61 +777,109 @@ function renderCor(){
   const rankLista = Object.values(rank).sort((a,b)=>b.tot-a.tot);
   const travadasIds = new Set(detectarCorridasTravadas().map(t=>t.corrida.id));
 
-  el.innerHTML = `
-    <div class="card" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end">
-      <div style="flex:1;min-width:140px"><div class="lbl">Status</div><select class="inp" onchange="filtroStatus=this.value;renderCor()"><option value="todas" ${filtroStatus==='todas'?'selected':''}>Todas</option><option value="aberta" ${filtroStatus==='aberta'?'selected':''}>Abertas</option><option value="aceita" ${filtroStatus==='aceita'?'selected':''}>Aceitas</option><option value="em_rota" ${filtroStatus==='em_rota'?'selected':''}>Em rota</option><option value="concluida" ${filtroStatus==='concluida'?'selected':''}>Concluídas</option><option value="cancelada" ${filtroStatus==='cancelada'?'selected':''}>Canceladas</option></select></div>
-      <div style="flex:1;min-width:140px"><div class="lbl">Período</div><select class="inp" onchange="filtroPeriodo=this.value;renderCor()"><option value="1" ${filtroPeriodo==='1'?'selected':''}>Hoje</option><option value="7" ${filtroPeriodo==='7'?'selected':''}>Últimos 7 dias</option><option value="30" ${filtroPeriodo==='30'?'selected':''}>Últimos 30 dias</option><option value="tudo" ${filtroPeriodo==='tudo'?'selected':''}>Tudo</option></select></div>
-      <button class="btn green" onclick="exportarCSV()">️ Exportar CSV</button>
-    </div>
-    <div class="stats">
-      <div class="stat"><div class="n" style="color:#3B82F6">${lista.length}</div><div class="l">Corridas no filtro</div></div>
-      <div class="stat"><div class="n" style="color:#9CA3AF">${concl.length}</div><div class="l">Concluídas</div></div>
-      <div class="stat"><div class="n" style="color:#00E676">${brl(tot)}</div><div class="l">Faturamento</div></div>
-      <div class="stat"><div class="n" style="color:#FFB300">${brl(media)}</div><div class="l">Ticket médio</div></div>
-    </div>
-    ${rankLista.length?`<div class="card"><div class="lbl" style="margin-bottom:8px">🏆 Ranking de motoqueiros (concluídas no período)</div><table><tr><th>Motoqueiro</th><th>Corridas</th><th>Faturou</th></tr>${rankLista.map(r=>`<tr><td>${esc(r.nome)}</td><td>${r.n}</td><td style="color:#00E676;font-weight:700">${brl(r.tot)}</td></tr>`).join('')}</table></div>`:''}
-    <div class="card"><div class="lbl" style="margin-bottom:8px">🛵 Corridas (${lista.length})</div>
-      ${lista.map(c=>{
-        const pg = c.pagamento||{};
-        const pgTxt = pg.status==='pago'?'PIX ✅':pg.metodo==='dinheiro'?'Dinheiro':pg.status==='pix_informado'?'PIX informado':'—';
-        const ehTravada = travadasIds.has(c.id);
-        const podeAgir = c.status === 'aberta' || c.status === 'aceita' || c.status === 'em_rota';
-        return `<div class="item ${ehTravada?'travada':''}"><div class="head">
-          <div><div class="nome">#${esc(c.id.slice(-6))} ${badgeSt(c.status)}${ehTravada?' <span class="badge b-trav">🚨 TRAVADA</span>':''}</div>
-          <div class="sub">🙋 ${esc(c.passageiroNome||'—')} (${esc(c.passageiroTel||'—')})<br/>📍 ${esc(c.origEndereco||'').slice(0,40)} → 🏁 ${esc(c.destEndereco||'').slice(0,40)}<br/>🏍️ ${esc(c.motoqueiroNome||'não atribuído')} •  ${c.distanciaKm||'—'} km • 🕐 ${dataHoraFmt(c.criadaEm)}${ehTravada?'<br/><b style="color:#EF4444"> Sem movimento há +'+TEMPO_MAX_SEM_GPS_MIN+' min</b>':''}${c.motivoCancelamento?'<br/><small style="color:#EF4444">❌ '+esc(c.motivoCancelamento)+'</small>':''}${c.motivoForca?'<br/><small style="color:#00E676">✅ '+esc(c.motivoForca)+'</small>':''}</div></div>
-          <div style="text-align:right"><div style="font-size:16px;font-weight:900;color:#00E676">${c.valorAceito?brl(c.valorAceito):'—'}</div><div class="sub">${pgTxt}</div>
-          ${podeAgir ? `
-            <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;margin-top:6px">
-              <button class="btn green mini" onclick="forcarConclusao('${c.id}')">✅ Forçar conclusão</button>
-              <button class="btn red mini" onclick="abrirModalCancelar('${c.id}')">❌ Cancelar</button>
-              ${c.status==='aberta'?`<button class="btn ghost mini" onclick="cancelarDoMapa('${c.id}')">🗑️ Apagar</button>`:''}
-            </div>
-          ` : ''}
-          </div>
-        </div></div>`;
-      }).join('') || '<p style="color:#6B7280;font-size:12px;text-align:center">Nenhuma corrida no filtro.</p>'}
-    </div>`;
+  let html = '<div class="card" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end"><div style="flex:1;min-width:140px"><div class="lbl">Status</div><select class="inp" onchange="filtroStatus=this.value;renderCor()"><option value="todas" '+(filtroStatus==='todas'?'selected':'')+'>Todas</option><option value="aberta" '+(filtroStatus==='aberta'?'selected':'')+'>Abertas</option><option value="aceita" '+(filtroStatus==='aceita'?'selected':'')+'>Aceitas</option><option value="em_rota" '+(filtroStatus==='em_rota'?'selected':'')+'>Em rota</option><option value="concluida" '+(filtroStatus==='concluida'?'selected':'')+'>Concluídas</option><option value="cancelada" '+(filtroStatus==='cancelada'?'selected':'')+'>Canceladas</option></select></div><div style="flex:1;min-width:140px"><div class="lbl">Período</div><select class="inp" onchange="filtroPeriodo=this.value;renderCor()"><option value="1" '+(filtroPeriodo==='1'?'selected':'')+'>Hoje</option><option value="7" '+(filtroPeriodo==='7'?'selected':'')+'>Últimos 7 dias</option><option value="30" '+(filtroPeriodo==='30'?'selected':'')+'>Últimos 30 dias</option><option value="tudo" '+(filtroPeriodo==='tudo'?'selected':'')+'>Tudo</option></select></div><button class="btn green" onclick="exportarCSV()">⬇️ Exportar CSV</button></div>';
+  html += '<div class="stats"><div class="stat"><div class="n" style="color:#3B82F6">'+lista.length+'</div><div class="l">Corridas no filtro</div></div><div class="stat"><div class="n" style="color:#9CA3AF">'+concl.length+'</div><div class="l">Concluídas</div></div><div class="stat"><div class="n" style="color:#00E676">'+brl(tot)+'</div><div class="l">Faturamento</div></div><div class="stat"><div class="n" style="color:#FFB300">'+brl(media)+'</div><div class="l">Ticket médio</div></div></div>';
+  if(rankLista.length){
+    html += '<div class="card"><div class="lbl" style="margin-bottom:8px">🏆 Ranking de motoqueiros (concluídas no período)</div><table><tr><th>Motoqueiro</th><th>Corridas</th><th>Faturou</th></tr>';
+    rankLista.forEach(r => { html += '<tr><td>'+esc(r.nome)+'</td><td>'+r.n+'</td><td style="color:#00E676;font-weight:700">'+brl(r.tot)+'</td></tr>'; });
+    html += '</table></div>';
+  }
+  html += '<div class="card"><div class="lbl" style="margin-bottom:8px">🛵 Corridas ('+lista.length+')</div>';
+  if(lista.length === 0){
+    html += '<p style="color:#6B7280;font-size:12px;text-align:center">Nenhuma corrida no filtro.</p>';
+  } else {
+    lista.forEach(c => {
+      const pg = c.pagamento||{};
+      const pgTxt = pg.status==='pago'?'PIX ✅':pg.metodo==='dinheiro'?'Dinheiro':pg.status==='pix_informado'?'PIX informado':'—';
+      const ehTravada = travadasIds.has(c.id);
+      const podeAgir = c.status === 'aberta' || c.status === 'aceita' || c.status === 'em_rota';
+      html += '<div class="item '+(ehTravada?'travada':'')+'"><div class="head"><div><div class="nome">#'+esc(c.id.slice(-6))+' '+badgeSt(c.status)+(ehTravada?' <span class="badge b-trav">🚨 TRAVADA</span>':'')+'</div><div class="sub">🙋 '+esc(c.passageiroNome||'—')+' ('+esc(c.passageiroTel||'—')+')<br/> '+esc(c.origEndereco||'').slice(0,40)+' → 🏁 '+esc(c.destEndereco||'').slice(0,40)+'<br/>🏍️ '+esc(c.motoqueiroNome||'não atribuído')+' • 📏 '+(c.distanciaKm||'—')+' km • 🕐 '+dataHoraFmt(c.criadaEm)+(ehTravada?'<br/><b style="color:#EF4444">⚠️ Sem movimento há +'+TEMPO_MAX_SEM_GPS_MIN+' min</b>':'')+(c.motivoCancelamento?'<br/><small style="color:#EF4444">❌ '+esc(c.motivoCancelamento)+'</small>':'')+(c.motivoForca?'<br/><small style="color:#00E676">✅ '+esc(c.motivoForca)+'</small>':'')+'</div></div><div style="text-align:right"><div style="font-size:16px;font-weight:900;color:#00E676">'+(c.valorAceito?brl(c.valorAceito):'—')+'</div><div class="sub">'+pgTxt+'</div>'+(podeAgir ? '<div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;margin-top:6px"><button class="btn green mini" onclick="forcarConclusao(\''+c.id+'\')">✅ Forçar conclusão</button><button class="btn red mini" onclick="abrirModalCancelar(\''+c.id+'\')">❌ Cancelar</button>'+(c.status==='aberta'?'<button class="btn ghost mini" onclick="cancelarDoMapa(\''+c.id+'\')">🗑️ Apagar</button>':'')+'</div>' : '')+'</div></div></div>';
+    });
+  }
+  html += '</div>';
+  el.innerHTML = html;
 }
+
+window.forcarConclusao = async (cid) => {
+  const c = C[cid];
+  if(!c) return;
+  const motivo = prompt('Forçar conclusão da corrida #'+cid.slice(-6)+'?\n\nMotoqueiro: '+(c.motoqueiroNome||'—')+'\nPassageiro: '+(c.passageiroNome||'—')+'\nValor: '+brl(c.valorAceito||0)+'\n\nDigite o MOTIVO (opcional):', 'Finalizada pelo administrador');
+  if(motivo === null) return;
+  try{
+    await api('/corridas/'+cid+'.json','PATCH',{ status: 'concluida', concluidaEm: new Date().toISOString(), forcadaPor: sessao.nome, motivoForca: motivo || 'Finalizada pelo administrador', pagamento: c.pagamento || {metodo:'dinheiro', status:'dinheiro'} });
+    toast('✅ Corrida forçada para CONCLUÍDA!');
+    await loadAll(); sincronizarMapa(); renderTodasAbas();
+  }catch(e){ toast('Erro: '+e.message,true); }
+};
+
+window.abrirModalCancelar = (cid) => {
+  const c = C[cid];
+  if(!c) return;
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = '<div class="modal"><h3>❌ Cancelar Corrida #'+cid.slice(-6)+'</h3><div style="font-size:12px;color:#9CA3AF;margin-bottom:12px">🏍️ '+esc(c.motoqueiroNome||'—')+' • 🙋 '+esc(c.passageiroNome||'—')+'<br/>💰 '+brl(c.valorAceito||0)+' • '+badgeSt(c.status)+'</div><div class="lbl">Motivo do cancelamento *</div><select class="inp" id="cancelMotivo" style="margin-bottom:10px"><option value="Motoqueiro não compareceu">Motoqueiro não compareceu</option><option value="Motoqueiro abandonou a corrida">Motoqueiro abandonou a corrida</option><option value="Passageiro desistiu">Passageiro desistiu</option><option value="Problema técnico (GPS travou)">Problema técnico (GPS travou)</option><option value="Acidente / emergência">Acidente / emergência</option><option value="Outro motivo">Outro motivo</option></select><div class="lbl">Observação adicional (opcional)</div><input class="inp" id="cancelObs" placeholder="Detalhes adicionais..." style="margin-bottom:14px"/><button class="btn red" style="width:100%" onclick="confirmarCancelamento(\''+cid+'\')">❌ Confirmar cancelamento</button><button class="btn ghost" style="width:100%;margin-top:8px" onclick="this.closest(\'.modal-overlay\').remove()">Voltar</button></div>';
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', (e) => { if(e.target === overlay) overlay.remove(); });
+};
+
+window.confirmarCancelamento = async (cid) => {
+  const motivo = document.getElementById('cancelMotivo').value;
+  const obs = (document.getElementById('cancelObs').value||'').trim();
+  if(!motivo){ toast('Selecione o motivo.',true); return; }
+  try{
+    await api('/corridas/'+cid+'.json','PATCH',{ status: 'cancelada', canceladaEm: new Date().toISOString(), canceladaPor: sessao.nome, motivoCancelamento: motivo + (obs ? ' — '+obs : '') });
+    toast('❌ Corrida cancelada!');
+    document.querySelector('.modal-overlay')?.remove();
+    await loadAll(); sincronizarMapa(); renderTodasAbas();
+  }catch(e){ toast('Erro: '+e.message,true); }
+};
+
+window.cancelarDoMapa = async (cid) => {
+  if(!confirm('Apagar esta corrida? Ela sumirá da tela de todos os motoqueiros.')) return;
+  try{ await api('/corridas/'+cid+'.json','DELETE'); toast('️ Corrida apagada!'); await loadAll(); sincronizarMapa(); renderTodasAbas(); }catch(e){ toast('Erro: '+e.message,true); }
+};
 
 window.exportarCSV = () => {
   const lista = corridasDoPeriodo().sort((a,b)=>new Date(b.criadaEm||0)-new Date(a.criadaEm||0));
   if(!lista.length){ toast('Nada para exportar no filtro.',true); return; }
   const linhas = [['ID','Data','Status','Passageiro','Tel Passageiro','Motoqueiro','Origem','Destino','Km','Valor','Pagamento','Motivo']];
   lista.forEach(c=>{const pg = c.pagamento||{};linhas.push([c.id, dataHoraFmt(c.criadaEm), c.status||'', c.passageiroNome||'', c.passageiroTel||'', c.motoqueiroNome||'', (c.origEndereco||'').replace(/;/g,','), (c.destEndereco||'').replace(/;/g,','), c.distanciaKm||'', (parseFloat(c.valorAceito)||0).toFixed(2), pg.status==='pago'?'PIX':pg.metodo==='dinheiro'?'DINHEIRO':pg.status||'', c.motivoCancelamento||c.motivoForca||'']);});
-  const csv = '\uFEFF' + linhas.map(l=>l.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(';')).join('\n');
+  const csv = '\uFEFF' + linhas.map(l=>l.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(';')).join('\n');
   const blob = new Blob([csv],{type:'text/csv;charset=utf-8'});
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'vai-de-moto-corridas-'+new Date().toISOString().split('T')[0]+'.csv'; a.click(); URL.revokeObjectURL(a.href);
-  toast('️ CSV exportado!');
+  toast('⬇️ CSV exportado!');
 };
+
+function renderPontos(){
+  const el = document.getElementById('aba-pontos');
+  if(!el) return;
+  const pontos = listaPontos().sort((a,b)=>(a.nome||'').localeCompare(b.nome||''));
+  let html = '<div class="card" style="background:rgba(168,85,247,.08);border-color:rgba(168,85,247,.4)"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><span style="font-size:28px"></span><div><b style="font-size:15px">Pontos de Interesse</b><p style="font-size:11px;color:#A855F7;margin:0">Marque locais importantes no mapa (hospitais, escolas, pontos de encontro)</p></div></div><button class="btn amber" onclick="mudarAba(\'mapa\');setTimeout(()=>{modoAdicionarPonto=true;toggleModoPonto();},100)">️ Ir para o mapa e adicionar</button></div>';
+  html += '<div class="card"><div class="lbl" style="margin-bottom:8px">📌 Pontos salvos ('+pontos.length+')</div>';
+  if(pontos.length === 0){
+    html += '<p style="color:#6B7280;font-size:12px;text-align:center">Nenhum ponto marcado ainda.</p>';
+  } else {
+    pontos.forEach(p => {
+      html += '<div class="ponto-item"><div class="ponto-cor" style="background:'+p.cor+'"></div><div style="font-size:20px">'+p.icone+'</div><div class="ponto-info"><b>'+esc(p.nome)+'</b><small>'+(p.obs?esc(p.obs)+' • ':'')+' '+p.lat.toFixed(4)+', '+p.lng.toFixed(4)+' • por '+esc(p.criadoPor||'admin')+'</small></div><button class="btn red mini" onclick="excluirPonto(\''+p.id+'\')">🗑️</button></div>';
+    });
+  }
+  html += '</div>';
+  el.innerHTML = html;
+}
 
 function renderAdm(){
   const el = document.getElementById('aba-adm');
   if(!el) return;
   api('/admins.json','GET').then(admins=>{
     const lista = Object.values(admins||{});
-    el.innerHTML = `<div class="card" style="max-width:520px"><div class="lbl">Trocar MINHA senha</div><input class="inp" id="mSenha" type="password" placeholder="Nova senha (mín. 6)" style="margin-bottom:10px"/><button class="btn amber" onclick="trocarMinhaSenha()">🔑 Trocar minha senha</button></div>
-    <div class="card" style="max-width:520px"><div class="lbl">Criar admin adicional</div><input class="inp" id="nNome" placeholder="Nome" style="margin-bottom:8px"/><input class="inp" id="nUser" placeholder="Usuário" style="margin-bottom:8px"/><input class="inp" id="nSenha" type="password" placeholder="Senha (mín. 6)" style="margin-bottom:10px"/><button class="btn green" onclick="criarAdminExtra()">➕ Criar admin</button></div>
-    <div class="card" style="max-width:520px"><div class="lbl" style="margin-bottom:8px">👑 Administradores (${lista.length})</div>${lista.map(a=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px dashed rgba(255,255,255,.06)"><span style="font-size:13px"><b>${esc(a.nome||'—')}</b> <span style="color:#8B98A5">(@${esc(a.usuario||'')})</span></span>${a.id!==sessao.id?`<button class="btn red mini" onclick="excluirAdmin('${a.id}','${esc(a.nome||'')}')">🗑️</button>`:'<span class="badge b-ok">VOCÊ</span>'}</div>`).join('')}</div>`;
+    let html = '<div class="card" style="max-width:520px"><div class="lbl">Trocar MINHA senha</div><input class="inp" id="mSenha" type="password" placeholder="Nova senha (mín. 6)" style="margin-bottom:10px"/><button class="btn amber" onclick="trocarMinhaSenha()">🔑 Trocar minha senha</button></div>';
+    html += '<div class="card" style="max-width:520px"><div class="lbl">Criar admin adicional</div><input class="inp" id="nNome" placeholder="Nome" style="margin-bottom:8px"/><input class="inp" id="nUser" placeholder="Usuário" style="margin-bottom:8px"/><input class="inp" id="nSenha" type="password" placeholder="Senha (mín. 6)" style="margin-bottom:10px"/><button class="btn green" onclick="criarAdminExtra()">➕ Criar admin</button></div>';
+    html += '<div class="card" style="max-width:520px"><div class="lbl" style="margin-bottom:8px">👑 Administradores ('+lista.length+')</div>';
+    lista.forEach(a => {
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px dashed rgba(255,255,255,.06)"><span style="font-size:13px"><b>'+esc(a.nome||'—')+'</b> <span style="color:#8B98A5">(@'+esc(a.usuario||'')+')</span></span>'+(a.id!==sessao.id?'<button class="btn red mini" onclick="excluirAdmin(\''+a.id+'\',\''+esc(a.nome||'')+'\')">🗑️</button>':'<span class="badge b-ok">VOCÊ</span>')+'</div>';
+    });
+    html += '</div>';
+    el.innerHTML = html;
   });
 }
 
@@ -1226,13 +910,8 @@ window.excluirAdmin = async (id,nome) => {
 
 (async function init(){
   const s = carregarSessao();
-  if(s){ 
-    sessao = s; 
-    await loadAll(); 
-    mostrarPainel(); 
-  } else {
-    renderLogin();
-  }
+  if(s){ sessao = s; await loadAll(); mostrarPainel(); }
+  else { renderLogin(); }
 })();
 </script>
 </body>
