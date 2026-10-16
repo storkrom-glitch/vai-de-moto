@@ -49,7 +49,7 @@
   table{width:100%;border-collapse:collapse;font-size:12px}
   th{color:#8B98A5;text-transform:uppercase;font-size:10px;letter-spacing:.6px;text-align:left;padding:8px 6px;border-bottom:1px solid #1F2937}
   td{padding:8px 6px;border-bottom:1px dashed rgba(255,255,255,.06);vertical-align:top}
-  #mapaVivo{height:560px;border-radius:14px;overflow:hidden;background:#0E1A24;border:1px solid #1F2937;margin-bottom:12px}
+  #mapaVivo{height:600px;border-radius:14px;overflow:hidden;background:#0E1A24;border:1px solid #1F2937;margin-bottom:12px;position:relative}
   #mapaLegenda{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:#9CA3AF;margin-top:8px}
   #mapaLegenda span{display:inline-flex;align-items:center;gap:5px}
   #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#FFB300;color:#1a1408;font-weight:800;font-size:12px;padding:11px 18px;border-radius:999px;opacity:0;transition:opacity .3s;z-index:999;max-width:90vw;text-align:center;pointer-events:none}
@@ -74,13 +74,14 @@
   .icones-opcoes{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
   .icone-opcao{width:40px;height:40px;border-radius:8px;background:#0D1218;border:2px solid #2A3542;display:flex;align-items:center;justify-content:center;font-size:20px;cursor:pointer}
   .icone-opcao.sel{border-color:#FFB300;background:rgba(255,179,0,.15)}
+  .mapa-status{position:absolute;top:10px;right:10px;background:rgba(0,230,118,.9);color:#000;padding:6px 12px;border-radius:20px;font-size:11px;font-weight:700;z-index:1000;pointer-events:none}
   @media(max-width:560px){.grid2{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 
 <div class="topo">
-  <div class="logo">🏍️ VAI DE <span>MOTO</span> • 👑 ADMIN</div>
+  <div class="logo">🏍️ VAI DE <span>MOTO</span> •  ADMIN</div>
   <div class="chip" id="adminchip" style="display:none"></div>
 </div>
 
@@ -100,10 +101,14 @@ let buscaP = '', buscaM = '';
 let filtroStatus = 'todas', filtroPeriodo = '30';
 let editando = null;
 let pollTimer = null;
-let mapa = null, mapaPronto = false;
-let marcadoresMapa = {}; // {tipo-id: marker}
+
+// 🎯 MAPA: instância única, nunca recriada
+let mapa = null;
+let mapaInicializado = false;
+let marcadoresMapa = {};
 let modoAdicionarPonto = false;
-let cliqueTemp = null; // {lat,lng} do clique pendente
+let cliqueTemp = null;
+let primeiraCargaMapa = true;
 
 const esc = s => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function hash(s){let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))>>>0;return'h'+h.toString(36);}
@@ -245,9 +250,9 @@ function render(){
   if(editando){ return renderEditar(app); }
   app.innerHTML = `
     <div class="tabs">
-      <button class="tab ${tab==='dash'?'on':''}" onclick="mudarTab('dash')"> Visão geral</button>
-      <button class="tab ${tab==='mapa'?'on':''}" onclick="mudarTab('mapa')">🗺️ Mapa ao vivo</button>
-      <button class="tab ${tab==='pontos'?'on':''}" onclick="mudarTab('pontos')">📌 Pontos de Interesse (${listaPontos().length})</button>
+      <button class="tab ${tab==='dash'?'on':''}" onclick="mudarTab('dash')">📊 Visão geral</button>
+      <button class="tab ${tab==='mapa'?'on':''}" onclick="mudarTab('mapa')">️ Mapa ao vivo</button>
+      <button class="tab ${tab==='pontos'?'on':''}" onclick="mudarTab('pontos')"> Pontos (${listaPontos().length})</button>
       <button class="tab ${tab==='testes'?'on':''}" onclick="mudarTab('testes')">🧪 Corrida de Teste</button>
       <button class="tab ${tab==='pass'?'on':''}" onclick="mudarTab('pass')">🙋 Passageiros (${listaPass().length})</button>
       <button class="tab ${tab==='moto'?'on':''}" onclick="mudarTab('moto')">🏍️ Motoqueiros (${listaMoto().length})</button>
@@ -268,7 +273,18 @@ function render(){
   if(tab==='adm') renderAdm(c);
 }
 
-window.mudarTab = t => { tab=t; editando=null; render(); };
+window.mudarTab = t => { 
+  tab=t; 
+  editando=null; 
+  render(); 
+  //  Se mudou para a aba do mapa, invalida o tamanho (corrige bug de renderização)
+  if(t==='mapa' && mapa){
+    setTimeout(()=>{
+      mapa.invalidateSize();
+      sincronizarMapa();
+    }, 100);
+  }
+};
 
 // ===================== DASHBOARD =====================
 function renderDash(el){
@@ -294,7 +310,7 @@ function renderDash(el){
       <div class="stat"><div class="n" style="color:#EF4444">${bloqueados}</div><div class="l">🚫 Contas bloqueadas</div></div>
     </div>
     <div class="card">
-      <div class="lbl" style="margin-bottom:8px">🕐 Últimas corridas</div>
+      <div class="lbl" style="margin-bottom:8px"> Últimas corridas</div>
       ${cs.sort((a,b)=>new Date(b.criadaEm||0)-new Date(a.criadaEm||0)).slice(0,8).map(c=>`
         <div style="display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px dashed rgba(255,255,255,.06);font-size:12px;flex-wrap:wrap">
           <span><b>#${esc(c.id.slice(-6))}</b> • ${esc(c.passageiroNome||'?')} → ${esc(c.destEndereco||'').slice(0,28)}</span>
@@ -303,7 +319,7 @@ function renderDash(el){
     </div>`;
 }
 
-// ===================== 🗺️ MAPA AO VIVO (CORRIGIDO) =====================
+// ===================== 🗺️ MAPA AO VIVO (PROFISSIONAL) =====================
 function renderMapa(el){
   el.innerHTML = `
     <div class="stats">
@@ -317,8 +333,11 @@ function renderMapa(el){
         ${modoAdicionarPonto ? '📌 Modo Adicionar ATIVO — clique no mapa' : '📌 Adicionar ponto de interesse'}
       </button>
       <button class="btn ghost" onclick="centralizarMapa()">🎯 Centralizar tudo</button>
+      <button class="btn ghost" onclick="forcarAtualizacaoMapa()">🔄 Atualizar agora</button>
     </div>
-    <div id="mapaVivo"></div>
+    <div id="mapaVivo">
+      <div class="mapa-status" id="mapaStatus" style="display:none">🟢 Atualizado</div>
+    </div>
     <div id="mapaLegenda">
       <span>🟢 Motoqueiro online</span>
       <span> Motoqueiro em corrida</span>
@@ -327,22 +346,53 @@ function renderMapa(el){
       <span>📌 Ponto de interesse</span>
     </div>
   `;
-  setTimeout(()=>{
-    if(!mapa){
-      mapa = L.map('mapaVivo',{zoomControl:true}).setView([-22.9,-43.2], 11);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'© OpenStreetMap'}).addTo(mapa);
-      mapaPronto = true;
-    }
-    // Só recria marcadores se o mapa acabou de ser montado (primeira vez)
-    // Nas próximas chamadas, apenas atualiza posições
-    sincronizarMapa();
-  }, 100);
+  
+  // 🎯 Inicializa o mapa APENAS UMA VEZ
+  if(!mapaInicializado){
+    setTimeout(()=>{
+      try{
+        mapa = L.map('mapaVivo',{
+          zoomControl:true,
+          zoomSnap: 0.5,
+          zoomDelta: 0.5,
+          wheelPxPerZoomLevel: 120
+        }).setView([-22.9,-43.2], 11);
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+          maxZoom:18,
+          attribution:'© OpenStreetMap'
+        }).addTo(mapa);
+        
+        mapaInicializado = true;
+        setupCliqueMapa();
+        sincronizarMapa();
+        
+        // Mostra indicador de atualização
+        mapa.on('zoomend moveend', ()=>{
+          const status = document.getElementById('mapaStatus');
+          if(status){
+            status.style.display = 'block';
+            setTimeout(()=>{ status.style.display = 'none'; }, 2000);
+          }
+        });
+      }catch(e){
+        console.error('Erro ao inicializar mapa:', e);
+        toast('Erro ao carregar mapa: '+e.message, true);
+      }
+    }, 200);
+  } else {
+    // Mapa já existe, só sincroniza
+    setTimeout(()=>{
+      mapa.invalidateSize();
+      sincronizarMapa();
+    }, 100);
+  }
 }
 
 window.toggleModoPonto = () => {
   modoAdicionarPonto = !modoAdicionarPonto;
   if(modoAdicionarPonto){
-    toast('📌 Clique no mapa onde quer marcar um ponto');
+    toast(' Clique no mapa onde quer marcar um ponto');
     if(mapa) mapa.getContainer().style.cursor = 'crosshair';
   } else {
     if(mapa) mapa.getContainer().style.cursor = '';
@@ -364,7 +414,13 @@ window.centralizarMapa = () => {
   }
 };
 
-// Clique no mapa para adicionar ponto
+window.forcarAtualizacaoMapa = async () => {
+  toast(' Atualizando...');
+  await loadAll();
+  sincronizarMapa();
+  toast('✅ Mapa atualizado!');
+};
+
 function setupCliqueMapa(){
   if(!mapa) return;
   mapa.off('click');
@@ -401,9 +457,9 @@ function abrirModalPonto(){
         <div class="icone-opcao" data-icone="🏥">🏥</div>
         <div class="icone-opcao" data-icone="🏫">🏫</div>
         <div class="icone-opcao" data-icone="🏪">🏪</div>
-        <div class="icone-opcao" data-icone="⛽">⛽</div>
+        <div class="icone-opcao" data-icone="⛽"></div>
         <div class="icone-opcao" data-icone="🚔"></div>
-        <div class="icone-opcao" data-icone="🏁">🏁</div>
+        <div class="icone-opcao" data-icone="🏁"></div>
         <div class="icone-opcao" data-icone="⭐">⭐</div>
       </div>
       <button class="btn green" style="width:100%" onclick="salvarPonto()">💾 Salvar ponto</button>
@@ -413,7 +469,6 @@ function abrirModalPonto(){
   document.body.appendChild(overlay);
   overlay.addEventListener('click', (e) => { if(e.target === overlay) fecharModalPonto(); });
 
-  // Handlers de seleção
   overlay.querySelectorAll('.cor-opcao').forEach(el => {
     el.addEventListener('click', () => {
       overlay.querySelectorAll('.cor-opcao').forEach(x => x.classList.remove('sel'));
@@ -471,22 +526,21 @@ window.excluirPonto = async (id) => {
   }catch(e){ toast('Erro: '+e.message,true); }
 };
 
-// ===================== SINCRONIZAÇÃO DO MAPA (NÃO REDESENHA) =====================
+// ===================== SINCRONIZAÇÃO DO MAPA (PROFISSIONAL) =====================
 function sincronizarMapa(){
-  if(!mapa || !mapaPronto) return;
-  setupCliqueMapa();
+  if(!mapa || !mapaInicializado) return;
 
   const cs = listaCorridas();
-  const pontosAtuais = new Set(); // IDs dos marcadores que devem existir
+  const pontosAtuais = new Set();
 
   // 1) Pedidos ABERTOS
   cs.filter(c=>c.status==='aberta').forEach(c=>{
     if(c.origLat && c.origLng){
       const key = 'aberta-'+c.id;
       pontosAtuais.add(key);
-      const html = `<div style="background:#FACC15;color:#000;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.5)">📍</div>`;
-      const tooltip = `📡 #${c.id.slice(-6)} • ${c.passageiroNome||'—'}\n ${c.origEndereco||''}\n🏁 ${c.destEndereco||''}\n📏 ${c.distanciaKm||'—'} km`;
-      const popup = `<div class="mapa-info"><b>📡 PEDIDO ABERTO</b><br/><b>#${esc(c.id.slice(-6))}</b> • ${badgeSt(c.status)}<br/>🙋 ${esc(c.passageiroNome||'—')}<br/>📞 ${esc(c.passageiroTel||'—')}<br/>📍 ${esc(c.origEndereco||'').slice(0,50)}<br/> ${esc(c.destEndereco||'').slice(0,50)}<br/> ${c.distanciaKm||'—'} km<br/>🕐 ${tempoAtras(c.criadaEm)}<br/><button class="btn red mini" onclick="cancelarDoMapa('${c.id}')">🗑️ Cancelar/Apagar pedido</button></div>`;
+      const html = `<div style="background:#FACC15;color:#000;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.5)"></div>`;
+      const tooltip = `📡 #${c.id.slice(-6)} • ${c.passageiroNome||'—'}\n📍 ${c.origEndereco||''}\n🏁 ${c.destEndereco||''}\n📏 ${c.distanciaKm||'—'} km`;
+      const popup = `<div class="mapa-info"><b>📡 PEDIDO ABERTO</b><br/><b>#${esc(c.id.slice(-6))}</b> • ${badgeSt(c.status)}<br/>🙋 ${esc(c.passageiroNome||'—')}<br/>📞 ${esc(c.passageiroTel||'—')}<br/> ${esc(c.origEndereco||'').slice(0,50)}<br/>🏁 ${esc(c.destEndereco||'').slice(0,50)}<br/>📏 ${c.distanciaKm||'—'} km<br/> ${tempoAtras(c.criadaEm)}<br/><button class="btn red mini" onclick="cancelarDoMapa('${c.id}')">️ Cancelar/Apagar pedido</button></div>`;
       atualizarOuCriarMarcador(key, [c.origLat,c.origLng], html, tooltip, popup);
     }
     if(c.destLat && c.destLng){
@@ -507,11 +561,10 @@ function sincronizarMapa(){
       const key = 'moto-'+c.id;
       pontosAtuais.add(key);
       const html = `<div style="background:${cor};color:#fff;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.5)">🏍️</div>`;
-      const tooltip = ` ${c.motoqueiroNome||'Motoqueiro'}\n🙋 ${c.passageiroNome||'—'}\n ${c.valorAceito?brl(c.valorAceito):'—'}\n${badgeSt(c.status).replace(/<[^>]*>/g,'')}`;
+      const tooltip = `️ ${c.motoqueiroNome||'Motoqueiro'}\n🙋 ${c.passageiroNome||'—'}\n💰 ${c.valorAceito?brl(c.valorAceito):'—'}\n${badgeSt(c.status).replace(/<[^>]*>/g,'')}`;
       const popup = `<div class="mapa-info"><b>🛵 EM CORRIDA</b> ${badgeSt(c.status)}<br/><b>#${esc(c.id.slice(-6))}</b><br/>🏍️ ${esc(c.motoqueiroNome||'—')}<br/>🙋 ${esc(c.passageiroNome||'—')}<br/>💰 ${c.valorAceito?brl(c.valorAceito):'—'}<br/>🕐 ${tempoAtras(c.criadaEm)}</div>`;
       atualizarOuCriarMarcador(key, [pos.lat,pos.lng], html, tooltip, popup);
       
-      // Linha até destino
       if(c.destLat && c.destLng){
         const keyLinha = 'linha-'+c.id;
         pontosAtuais.add(keyLinha);
@@ -532,7 +585,7 @@ function sincronizarMapa(){
       pontosAtuais.add(key);
       const html = `<div style="background:${p.cor||'#EF4444'};color:#fff;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.5)">${p.icone||''}</div>`;
       const tooltip = `📌 ${p.nome}${p.obs?' — '+p.obs:''}`;
-      const popup = `<div class="mapa-info"><b>📌 ${esc(p.nome)}</b>${p.obs?'<br/><small>'+esc(p.obs)+'</small>':''}<br/><small style="color:#8B98A5">Adicionado por ${esc(p.criadoPor||'admin')}</small><br/><button class="btn red mini" onclick="excluirPonto('${p.id}')">🗑️ Excluir ponto</button></div>`;
+      const popup = `<div class="mapa-info"><b>📌 ${esc(p.nome)}</b>${p.obs?'<br/><small>'+esc(p.obs)+'</small>':''}<br/><small style="color:#8B98A5">Adicionado por ${esc(p.criadoPor||'admin')}</small><br/><button class="btn red mini" onclick="excluirPonto('${p.id}')">️ Excluir ponto</button></div>`;
       atualizarOuCriarMarcador(key, [p.lat,p.lng], html, tooltip, popup);
     }
   });
@@ -552,7 +605,7 @@ function sincronizarMapa(){
       const key = 'online-'+m.id;
       pontosAtuais.add(key);
       const html = `<div style="background:#10B981;color:#fff;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4);opacity:.8">🏍️</div>`;
-      const tooltip = `🟢 ${m.nome}\n📞 ${m.telefone}\n🛵 ${m.modelo} ${m.placa}`;
+      const tooltip = ` ${m.nome}\n📞 ${m.telefone}\n🛵 ${m.modelo} ${m.placa}`;
       const popup = `<div class="mapa-info"><b>🟢 MOTOQUEIRO ONLINE</b><br/>🏍️ ${esc(m.nome||'—')}<br/>📞 ${esc(m.telefone||'—')}<br/>🛵 ${esc(m.modelo||'—')} ${esc(m.placa||'')}<br/>🕐 Última posição: ${dataHoraFmt(ultimaPos.ts)}</div>`;
       atualizarOuCriarMarcador(key, [ultimaPos.lat,ultimaPos.lng], html, tooltip, popup);
     }
@@ -565,32 +618,66 @@ function sincronizarMapa(){
       delete marcadoresMapa[key];
     }
   });
+
+  // 6) Centraliza apenas na primeira carga
+  if(primeiraCargaMapa){
+    primeiraCargaMapa = false;
+    const todosPontos = [];
+    Object.values(marcadoresMapa).forEach(m => {
+      if(m.getLatLng) todosPontos.push(m.getLatLng());
+    });
+    if(todosPontos.length > 0){
+      try{ mapa.fitBounds(L.latLngBounds(todosPontos),{padding:[50,50],maxZoom:13}); }catch(e){}
+    }
+  }
 }
 
 function atualizarOuCriarMarcador(key, latlng, html, tooltip, popup){
   if(marcadoresMapa[key]){
-    // Só move — NÃO recria (preserva zoom/interação do usuário)
-    marcadoresMapa[key].setLatLng(latlng);
-    // Atualiza tooltip e popup se mudou
-    if(marcadoresMapa[key].getTooltip && marcadoresMapa[key].getTooltip()){
-      marcadoresMapa[key].setTooltipContent(tooltip);
-    }
-    if(marcadoresMapa[key].getPopup && marcadoresMapa[key].getPopup()){
-      marcadoresMapa[key].setPopupContent(popup);
+    // 🎯 Só move — NUNCA recria (preserva zoom e interação)
+    try{
+      marcadoresMapa[key].setLatLng(latlng);
+      if(marcadoresMapa[key].getTooltip){
+        const tt = marcadoresMapa[key].getTooltip();
+        if(tt) tt.setContent(tooltip);
+      }
+      if(marcadoresMapa[key].getPopup){
+        const pp = marcadoresMapa[key].getPopup();
+        if(pp) pp.setContent(popup);
+      }
+    }catch(e){
+      // Se falhar, recria
+      try{ mapa.removeLayer(marcadoresMapa[key]); }catch(e2){}
+      delete marcadoresMapa[key];
+      criarMarcador(key, latlng, html, tooltip, popup);
     }
   } else {
+    criarMarcador(key, latlng, html, tooltip, popup);
+  }
+}
+
+function criarMarcador(key, latlng, html, tooltip, popup){
+  try{
     const mk = L.marker(latlng, {
       icon: L.divIcon({ html, className:'', iconSize:[36,36], iconAnchor:[18,18] })
     }).addTo(mapa);
     mk.bindTooltip(tooltip, { direction:'top', offset:[0,-10], opacity:.95 });
     mk.bindPopup(popup, { maxWidth: 280 });
     marcadoresMapa[key] = mk;
+  }catch(e){
+    console.error('Erro ao criar marcador:', e);
   }
 }
 
 window.cancelarDoMapa = async (cid) => {
   if(!confirm('Apagar esta corrida? Ela sumirá da tela de todos os motoqueiros.')) return;
-  try{ await api('/corridas/'+cid+'.json','DELETE'); toast('🗑️ Corrida apagada!'); await loadAll(); sincronizarMapa(); render(); }catch(e){ toast('Erro: '+e.message,true); }
+  try{ 
+    await api('/corridas/'+cid+'.json','DELETE'); 
+    toast('🗑️ Corrida apagada!'); 
+    await loadAll(); 
+    sincronizarMapa(); 
+    render(); 
+  }catch(e){ toast('Erro: '+e.message,true); }
 };
 
 // ===================== 📌 PONTOS DE INTERESSE =====================
@@ -608,7 +695,7 @@ function renderPontos(el){
       <button class="btn amber" onclick="mudarTab('mapa');setTimeout(()=>{modoAdicionarPonto=true;render();},100)">🗺️ Ir para o mapa e adicionar</button>
     </div>
     <div class="card">
-      <div class="lbl" style="margin-bottom:8px">📌 Pontos salvos (${pontos.length})</div>
+      <div class="lbl" style="margin-bottom:8px"> Pontos salvos (${pontos.length})</div>
       ${pontos.map(p=>`
         <div class="ponto-item">
           <div class="ponto-cor" style="background:${p.cor}"></div>
@@ -706,7 +793,7 @@ function renderMoto(el){
   const lista = listaMoto().filter(m => (m.nome||'').toLowerCase().includes(buscaM) || (m.telefone||'').includes(buscaM) || (m.placa||'').toLowerCase().includes(buscaM)).sort((a,b)=>(a.nome||'').localeCompare(b.nome||''));
   const stats = id => { const cs = listaCorridas().filter(c=>c.motoqueiroId===id && c.status==='concluida'); return { n: cs.length, tot: cs.reduce((t,c)=>t+(parseFloat(c.valorAceito)||0),0) }; };
   el.innerHTML = `<div class="card"><input class="inp" placeholder="🔍 Buscar por nome, telefone ou placa..." value="${esc(buscaM)}" oninput="buscaM=this.value;render()"/></div>
-    ${lista.map(m=>{ const s = stats(m.id); return `<div class="item"><div class="head"><div><div class="nome">🏍️ ${esc(m.nome||'—')} ${m.bloqueado?'<span class="badge b-blq">BLOQUEADO</span>':'<span class="badge b-ok">ATIVO</span>'}</div><div class="sub">📞 ${esc(m.telefone||'—')} • 🪪 CNH ${esc(m.cnh||'—')}<br/> ${esc(m.modelo||'—')} ${esc(m.cor||'')} • placa ${esc(m.placa||'—')} (${esc(m.ano||'—')})<br/>💠 PIX: ${esc(m.pix||'não cadastrada')} • desde ${dataFmt(m.criadoEm)}</div><div class="sub" style="color:#00E676;font-weight:700">✅ ${s.n} corrida(s) • 💰 ${brl(s.tot)}</div></div></div>
+    ${lista.map(m=>{ const s = stats(m.id); return `<div class="item"><div class="head"><div><div class="nome">🏍️ ${esc(m.nome||'—')} ${m.bloqueado?'<span class="badge b-blq">BLOQUEADO</span>':'<span class="badge b-ok">ATIVO</span>'}</div><div class="sub">📞 ${esc(m.telefone||'—')} • 🪪 CNH ${esc(m.cnh||'—')}<br/>🛵 ${esc(m.modelo||'—')} ${esc(m.cor||'')} • placa ${esc(m.placa||'—')} (${esc(m.ano||'—')})<br/>💠 PIX: ${esc(m.pix||'não cadastrada')} • desde ${dataFmt(m.criadoEm)}</div><div class="sub" style="color:#00E676;font-weight:700">✅ ${s.n} corrida(s) • 💰 ${brl(s.tot)}</div></div></div>
     <div class="acts"><button class="btn blue mini" onclick="abrirEditar('m','${m.id}')">✏️ Editar</button>${m.bloqueado ? `<button class="btn green mini" onclick="bloquear('m','${m.id}',false)">✅ Desbloquear</button>` : `<button class="btn red mini" onclick="bloquear('m','${m.id}',true)">🚫 Bloquear</button>`}<button class="btn ghost mini" onclick="excluir('m','${m.id}','${esc(m.nome||'')}')">🗑️ Excluir</button></div></div>`; }).join('') || '<div class="card" style="text-align:center;color:#6B7280">Nenhum motoqueiro encontrado.</div>'}`;
 }
 
@@ -762,7 +849,7 @@ window.bloquear = async (tipo,id,blq) => {
 window.excluir = async (tipo,id,nome) => {
   if(!confirm(`EXCLUIR permanentemente ${nome}? Esta ação não tem volta.`)) return;
   if(!confirm('ÚLTIMA CHANCE: excluir mesmo?')) return;
-  try{ await api(`/${tipo==='p'?'passageiros':'motoqueiros'}/${id}.json`,'DELETE'); toast('🗑️ Registro excluído.'); await loadAll(); render(); }catch(e){ toast('Erro: '+e.message,true); }
+  try{ await api(`/${tipo==='p'?'passageiros':'motoqueiros'}/${id}.json`,'DELETE'); toast('️ Registro excluído.'); await loadAll(); render(); }catch(e){ toast('Erro: '+e.message,true); }
 };
 
 // ===================== CORRIDAS & RELATÓRIOS =====================
@@ -806,8 +893,8 @@ window.exportarCSV = () => {
 function renderAdm(el){
   api('/admins.json','GET').then(admins=>{
     const lista = Object.values(admins||{});
-    el.innerHTML = `<div class="card" style="max-width:520px"><div class="lbl">Trocar MINHA senha</div><input class="inp" id="mSenha" type="password" placeholder="Nova senha (mín. 6)" style="margin-bottom:10px"/><button class="btn amber" onclick="trocarMinhaSenha()">🔑 Trocar minha senha</button></div>
-    <div class="card" style="max-width:520px"><div class="lbl">Criar admin adicional</div><input class="inp" id="nNome" placeholder="Nome" style="margin-bottom:8px"/><input class="inp" id="nUser" placeholder="Usuário" style="margin-bottom:8px"/><input class="inp" id="nSenha" type="password" placeholder="Senha (mín. 6)" style="margin-bottom:10px"/><button class="btn green" onclick="criarAdminExtra()"> Criar admin</button></div>
+    el.innerHTML = `<div class="card" style="max-width:520px"><div class="lbl">Trocar MINHA senha</div><input class="inp" id="mSenha" type="password" placeholder="Nova senha (mín. 6)" style="margin-bottom:10px"/><button class="btn amber" onclick="trocarMinhaSenha()"> Trocar minha senha</button></div>
+    <div class="card" style="max-width:520px"><div class="lbl">Criar admin adicional</div><input class="inp" id="nNome" placeholder="Nome" style="margin-bottom:8px"/><input class="inp" id="nUser" placeholder="Usuário" style="margin-bottom:8px"/><input class="inp" id="nSenha" type="password" placeholder="Senha (mín. 6)" style="margin-bottom:10px"/><button class="btn green" onclick="criarAdminExtra()">➕ Criar admin</button></div>
     <div class="card" style="max-width:520px"><div class="lbl" style="margin-bottom:8px">👑 Administradores (${lista.length})</div>${lista.map(a=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px dashed rgba(255,255,255,.06)"><span style="font-size:13px"><b>${esc(a.nome||'—')}</b> <span style="color:#8B98A5">(@${esc(a.usuario||'')})</span></span>${a.id!==sessao.id?`<button class="btn red mini" onclick="excluirAdmin('${a.id}','${esc(a.nome||'')}')">🗑️</button>`:'<span class="badge b-ok">VOCÊ</span>'}</div>`).join('')}</div>`;
   });
 }
@@ -816,7 +903,7 @@ window.trocarMinhaSenha = async () => {
   const s = document.getElementById('mSenha').value||'';
   if(s.length<6){ toast('Senha mín. 6 caracteres.',true); return; }
   await api('/admins/'+sessao.id+'.json','PATCH',{ senhaHash: hash(s) });
-  toast('🔑 Senha trocada!'); document.getElementById('mSenha').value='';
+  toast(' Senha trocada!'); document.getElementById('mSenha').value='';
 };
 
 window.criarAdminExtra = async () => {
@@ -834,7 +921,7 @@ window.criarAdminExtra = async () => {
 
 window.excluirAdmin = async (id,nome) => {
   if(!confirm('Excluir o admin '+nome+'?')) return;
-  await api('/admins/'+id+'.json','DELETE'); toast('️ Admin excluído.'); render();
+  await api('/admins/'+id+'.json','DELETE'); toast('🗑️ Admin excluído.'); render();
 };
 
 // ===================== INÍCIO =====================
@@ -845,8 +932,10 @@ function iniciarPainel(){
     await loadAll();
     if(sessao && !editando){
       render();
-      // 🆕 Só sincroniza o mapa se ele já existe (não recria)
-      if(tab==='mapa' && mapaPronto) sincronizarMapa();
+      // 🎯 Só sincroniza o mapa se ele já existe e está na aba certa
+      if(tab==='mapa' && mapaInicializado){
+        sincronizarMapa();
+      }
     }
   }, 8000);
 }
