@@ -49,10 +49,12 @@
   table{width:100%;border-collapse:collapse;font-size:12px}
   th{color:#8B98A5;text-transform:uppercase;font-size:10px;letter-spacing:.6px;text-align:left;padding:8px 6px;border-bottom:1px solid #1F2937}
   td{padding:8px 6px;border-bottom:1px dashed rgba(255,255,255,.06);vertical-align:top}
+  
+  /* 🎯 MAPA: container sempre visível no DOM */
   #mapaVivo{height:600px;border-radius:14px;overflow:hidden;background:#0E1A24;border:1px solid #1F2937;margin-bottom:12px;position:relative}
   #mapaLegenda{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:#9CA3AF;margin-top:8px}
   #mapaLegenda span{display:inline-flex;align-items:center;gap:5px}
-  #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#FFB300;color:#1a1408;font-weight:800;font-size:12px;padding:11px 18px;border-radius:999px;opacity:0;transition:opacity .3s;z-index:999;max-width:90vw;text-align:center;pointer-events:none}
+  #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#FFB300;color:#1a1408;font-weight:800;font-size:12px;padding:11px 18px;border-radius:999px;opacity:0;transition:opacity .3s;z-index:9999;max-width:90vw;text-align:center;pointer-events:none}
   #toast.show{opacity:1}
   #toast.err{background:#EF4444;color:#fff}
   .mapa-info{background:#0D1218;border:1px solid #1F2937;border-radius:10px;padding:10px;font-size:12px;max-width:260px}
@@ -75,17 +77,69 @@
   .icone-opcao{width:40px;height:40px;border-radius:8px;background:#0D1218;border:2px solid #2A3542;display:flex;align-items:center;justify-content:center;font-size:20px;cursor:pointer}
   .icone-opcao.sel{border-color:#FFB300;background:rgba(255,179,0,.15)}
   .mapa-status{position:absolute;top:10px;right:10px;background:rgba(0,230,118,.9);color:#000;padding:6px 12px;border-radius:20px;font-size:11px;font-weight:700;z-index:1000;pointer-events:none}
+  
+  /* 🎯 Sistema de abas: esconde/mostra sem destruir */
+  .aba-conteudo{display:none}
+  .aba-conteudo.ativa{display:block}
+  
   @media(max-width:560px){.grid2{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 
 <div class="topo">
-  <div class="logo">🏍️ VAI DE <span>MOTO</span> •  ADMIN</div>
+  <div class="logo">🏍️ VAI DE <span>MOTO</span> • 👑 ADMIN</div>
   <div class="chip" id="adminchip" style="display:none"></div>
 </div>
 
-<div class="wrap" id="app"></div>
+<div class="wrap" id="app">
+  <!-- Login será injetado aqui -->
+</div>
+
+<!-- 🎯 Container do painel (sempre no DOM, abas escondidas/mostradas) -->
+<div id="painel" style="display:none">
+  <div class="wrap">
+    <div class="tabs" id="tabsContainer">
+      <button class="tab on" data-aba="dash" onclick="mudarAba('dash')">📊 Visão geral</button>
+      <button class="tab" data-aba="mapa" onclick="mudarAba('mapa')">️ Mapa ao vivo</button>
+      <button class="tab" data-aba="pontos" onclick="mudarAba('pontos')">📌 Pontos (<span id="cntPontos">0</span>)</button>
+      <button class="tab" data-aba="testes" onclick="mudarAba('testes')">🧪 Corrida de Teste</button>
+      <button class="tab" data-aba="pass" onclick="mudarAba('pass')">🙋 Passageiros (<span id="cntPass">0</span>)</button>
+      <button class="tab" data-aba="moto" onclick="mudarAba('moto')">🏍️ Motoqueiros (<span id="cntMoto">0</span>)</button>
+      <button class="tab" data-aba="cor" onclick="mudarAba('cor')"> Corridas & Relatórios</button>
+      <button class="tab" data-aba="adm" onclick="mudarAba('adm')">️ Admins</button>
+      <button class="tab" onclick="sairAdmin()">🚪 Sair</button>
+    </div>
+
+    <!-- 🎯 Todas as abas existem no DOM desde o início -->
+    <div id="aba-dash" class="aba-conteudo ativa"></div>
+    <div id="aba-mapa" class="aba-conteudo">
+      <div class="stats" id="statsMapa"></div>
+      <div class="mapa-controles">
+        <button class="btn blue" id="btnAddPonto" onclick="toggleModoPonto()">📌 Adicionar ponto de interesse</button>
+        <button class="btn ghost" onclick="centralizarMapa()">🎯 Centralizar tudo</button>
+        <button class="btn ghost" onclick="forcarAtualizacaoMapa()">🔄 Atualizar agora</button>
+      </div>
+      <div id="mapaVivo">
+        <div class="mapa-status" id="mapaStatus" style="display:none">🟢 Atualizado</div>
+      </div>
+      <div id="mapaLegenda">
+        <span> Motoqueiro online</span>
+        <span>🔵 Motoqueiro em corrida</span>
+        <span>📍 Origem do pedido</span>
+        <span>🏁 Destino do pedido</span>
+        <span> Ponto de interesse</span>
+      </div>
+    </div>
+    <div id="aba-pontos" class="aba-conteudo"></div>
+    <div id="aba-testes" class="aba-conteudo"></div>
+    <div id="aba-pass" class="aba-conteudo"></div>
+    <div id="aba-moto" class="aba-conteudo"></div>
+    <div id="aba-cor" class="aba-conteudo"></div>
+    <div id="aba-adm" class="aba-conteudo"></div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -95,14 +149,14 @@ const FB = window.VDM.firebaseURL;
 const KEY_ADMIN = 'vdm_admin';
 
 let sessao = null;
-let tab = 'dash';
+let abaAtual = 'dash';
 let P = {}, M = {}, C = {}, POS = {}, PONTOS = {};
 let buscaP = '', buscaM = '';
 let filtroStatus = 'todas', filtroPeriodo = '30';
 let editando = null;
 let pollTimer = null;
 
-// 🎯 MAPA: instância única, nunca recriada
+// 🎯 MAPA: instância única, nunca destruída
 let mapa = null;
 let mapaInicializado = false;
 let marcadoresMapa = {};
@@ -153,6 +207,7 @@ const badgeSt = s => { const x = ST[s]||ST.aberta; return `<span class="badge ${
 
 // ===================== LOGIN =====================
 async function renderLogin(){
+  document.getElementById('painel').style.display = 'none';
   const app = document.getElementById('app');
   let admins = null;
   try{ admins = await api('/admins.json','GET'); }catch(e){}
@@ -185,8 +240,8 @@ window.criarAdmin = async () => {
   const id = 'adm-' + Date.now();
   await api('/admins/'+id+'.json','PUT',{ id, nome, usuario:user, senhaHash:hash(senha), criadoEm:new Date().toISOString() });
   salvarSessao({ id, nome, usuario:user });
-  toast('👑 Admin criado! Bem-vindo.');
-  iniciarPainel();
+  toast(' Admin criado! Bem-vindo.');
+  mostrarPainel();
 };
 
 window.logarAdmin = async () => {
@@ -198,16 +253,76 @@ window.logarAdmin = async () => {
   if(achado.senhaHash !== hash(senha)){ toast('Senha incorreta.',true); return; }
   salvarSessao({ id:achado.id, nome:achado.nome, usuario:achado.usuario });
   toast('👑 Bem-vindo, '+achado.nome+'!');
-  iniciarPainel();
+  mostrarPainel();
 };
 
 window.sairAdmin = () => {
   localStorage.removeItem(KEY_ADMIN);
   sessao=null;
   if(pollTimer){ clearInterval(pollTimer); pollTimer=null; }
-  document.getElementById('adminchip').style.display='none';
+  document.getElementById('painel').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
   renderLogin();
 };
+
+// ===================== MOSTRAR PAINEL =====================
+function mostrarPainel(){
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('painel').style.display = 'block';
+  const chip = document.getElementById('adminchip');
+  if(sessao){ chip.style.display='block'; chip.textContent='👑 '+sessao.nome; }
+  
+  //  Inicializa o mapa UMA VEZ
+  if(!mapaInicializado){
+    setTimeout(()=>{
+      try{
+        mapa = L.map('mapaVivo',{
+          zoomControl:true,
+          zoomSnap: 0.5,
+          zoomDelta: 0.5,
+          wheelPxPerZoomLevel: 120
+        }).setView([-22.9,-43.2], 11);
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+          maxZoom:18,
+          attribution:'© OpenStreetMap'
+        }).addTo(mapa);
+        
+        mapaInicializado = true;
+        setupCliqueMapa();
+        
+        // Evento de interação
+        mapa.on('zoomend moveend', ()=>{
+          const status = document.getElementById('mapaStatus');
+          if(status){
+            status.style.display = 'block';
+            setTimeout(()=>{ status.style.display = 'none'; }, 2000);
+          }
+        });
+        
+        console.log('✅ Mapa inicializado com sucesso');
+      }catch(e){
+        console.error('Erro ao inicializar mapa:', e);
+        toast('Erro ao carregar mapa: '+e.message, true);
+      }
+    }, 300);
+  }
+  
+  // Renderiza todas as abas
+  renderTodasAbas();
+  
+  // Inicia polling
+  if(pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(async ()=>{
+    await loadAll();
+    if(sessao && !editando){
+      renderTodasAbas();
+      if(abaAtual==='mapa' && mapaInicializado){
+        sincronizarMapa();
+      }
+    }
+  }, 8000);
+}
 
 // ===================== CARGA DE DADOS =====================
 async function loadAll(){
@@ -242,43 +357,24 @@ function corridasDoPeriodo(){
   });
 }
 
-// ===================== RENDER GERAL =====================
-function render(){
-  const chip = document.getElementById('adminchip');
-  if(sessao){ chip.style.display='block'; chip.textContent='👑 '+sessao.nome; }
-  const app = document.getElementById('app');
-  if(editando){ return renderEditar(app); }
-  app.innerHTML = `
-    <div class="tabs">
-      <button class="tab ${tab==='dash'?'on':''}" onclick="mudarTab('dash')">📊 Visão geral</button>
-      <button class="tab ${tab==='mapa'?'on':''}" onclick="mudarTab('mapa')">️ Mapa ao vivo</button>
-      <button class="tab ${tab==='pontos'?'on':''}" onclick="mudarTab('pontos')"> Pontos (${listaPontos().length})</button>
-      <button class="tab ${tab==='testes'?'on':''}" onclick="mudarTab('testes')">🧪 Corrida de Teste</button>
-      <button class="tab ${tab==='pass'?'on':''}" onclick="mudarTab('pass')">🙋 Passageiros (${listaPass().length})</button>
-      <button class="tab ${tab==='moto'?'on':''}" onclick="mudarTab('moto')">🏍️ Motoqueiros (${listaMoto().length})</button>
-      <button class="tab ${tab==='cor'?'on':''}" onclick="mudarTab('cor')">🛵 Corridas & Relatórios</button>
-      <button class="tab ${tab==='adm'?'on':''}" onclick="mudarTab('adm')">⚙️ Admins</button>
-      <button class="tab" onclick="sairAdmin()">🚪 Sair</button>
-    </div>
-    <div id="conteudo"></div>
-  `;
-  const c = document.getElementById('conteudo');
-  if(tab==='dash') renderDash(c);
-  if(tab==='mapa') renderMapa(c);
-  if(tab==='pontos') renderPontos(c);
-  if(tab==='testes') renderTestes(c);
-  if(tab==='pass') renderPass(c);
-  if(tab==='moto') renderMoto(c);
-  if(tab==='cor') renderCor(c);
-  if(tab==='adm') renderAdm(c);
-}
-
-window.mudarTab = t => { 
-  tab=t; 
-  editando=null; 
-  render(); 
-  //  Se mudou para a aba do mapa, invalida o tamanho (corrige bug de renderização)
-  if(t==='mapa' && mapa){
+// ===================== SISTEMA DE ABAS (NUNCA DESTRÓI) =====================
+window.mudarAba = (aba) => {
+  abaAtual = aba;
+  
+  // Atualiza botões
+  document.querySelectorAll('.tab').forEach(t => {
+    t.classList.toggle('on', t.dataset.aba === aba);
+  });
+  
+  // Mostra/esconde abas (NÃO destrói)
+  document.querySelectorAll('.aba-conteudo').forEach(el => {
+    el.classList.remove('ativa');
+  });
+  const abaEl = document.getElementById('aba-'+aba);
+  if(abaEl) abaEl.classList.add('ativa');
+  
+  // 🎯 Se é a aba do mapa, invalida tamanho e sincroniza
+  if(aba === 'mapa' && mapaInicializado){
     setTimeout(()=>{
       mapa.invalidateSize();
       sincronizarMapa();
@@ -286,8 +382,27 @@ window.mudarTab = t => {
   }
 };
 
+// ===================== RENDER TODAS AS ABAS =====================
+function renderTodasAbas(){
+  // Atualiza contadores
+  document.getElementById('cntPontos').textContent = listaPontos().length;
+  document.getElementById('cntPass').textContent = listaPass().length;
+  document.getElementById('cntMoto').textContent = listaMoto().length;
+  
+  renderDash();
+  renderMapaStats();
+  renderPontos();
+  renderTestes();
+  renderPass();
+  renderMoto();
+  renderCor();
+  renderAdm();
+}
+
 // ===================== DASHBOARD =====================
-function renderDash(el){
+function renderDash(){
+  const el = document.getElementById('aba-dash');
+  if(!el) return;
   const cs = listaCorridas();
   const concl = cs.filter(c=>c.status==='concluida');
   const fatur = concl.reduce((t,c)=>t+(parseFloat(c.valorAceito)||0),0);
@@ -310,7 +425,7 @@ function renderDash(el){
       <div class="stat"><div class="n" style="color:#EF4444">${bloqueados}</div><div class="l">🚫 Contas bloqueadas</div></div>
     </div>
     <div class="card">
-      <div class="lbl" style="margin-bottom:8px"> Últimas corridas</div>
+      <div class="lbl" style="margin-bottom:8px">🕐 Últimas corridas</div>
       ${cs.sort((a,b)=>new Date(b.criadaEm||0)-new Date(a.criadaEm||0)).slice(0,8).map(c=>`
         <div style="display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px dashed rgba(255,255,255,.06);font-size:12px;flex-wrap:wrap">
           <span><b>#${esc(c.id.slice(-6))}</b> • ${esc(c.passageiroNome||'?')} → ${esc(c.destEndereco||'').slice(0,28)}</span>
@@ -319,85 +434,31 @@ function renderDash(el){
     </div>`;
 }
 
-// ===================== 🗺️ MAPA AO VIVO (PROFISSIONAL) =====================
-function renderMapa(el){
+// ===================== 🗺️ MAPA AO VIVO =====================
+function renderMapaStats(){
+  const el = document.getElementById('statsMapa');
+  if(!el) return;
   el.innerHTML = `
-    <div class="stats">
-      <div class="stat"><div class="n" style="color:#FACC15">${listaCorridas().filter(c=>c.status==='aberta').length}</div><div class="l">📡 Pedidos abertos</div></div>
-      <div class="stat"><div class="n" style="color:#00E676">${listaCorridas().filter(c=>c.status==='aceita'||c.status==='em_rota').length}</div><div class="l">🛵 Em corrida</div></div>
-      <div class="stat"><div class="n" style="color:#3B82F6">${Object.keys(POS).length}</div><div class="l">📍 Posições ativas</div></div>
-      <div class="stat"><div class="n" style="color:#FFB300">${listaPontos().length}</div><div class="l">📌 Pontos marcados</div></div>
-    </div>
-    <div class="mapa-controles">
-      <button class="btn ${modoAdicionarPonto?'amber':'blue'}" onclick="toggleModoPonto()">
-        ${modoAdicionarPonto ? '📌 Modo Adicionar ATIVO — clique no mapa' : '📌 Adicionar ponto de interesse'}
-      </button>
-      <button class="btn ghost" onclick="centralizarMapa()">🎯 Centralizar tudo</button>
-      <button class="btn ghost" onclick="forcarAtualizacaoMapa()">🔄 Atualizar agora</button>
-    </div>
-    <div id="mapaVivo">
-      <div class="mapa-status" id="mapaStatus" style="display:none">🟢 Atualizado</div>
-    </div>
-    <div id="mapaLegenda">
-      <span>🟢 Motoqueiro online</span>
-      <span> Motoqueiro em corrida</span>
-      <span>📍 Origem do pedido</span>
-      <span>🏁 Destino do pedido</span>
-      <span>📌 Ponto de interesse</span>
-    </div>
+    <div class="stat"><div class="n" style="color:#FACC15">${listaCorridas().filter(c=>c.status==='aberta').length}</div><div class="l">📡 Pedidos abertos</div></div>
+    <div class="stat"><div class="n" style="color:#00E676">${listaCorridas().filter(c=>c.status==='aceita'||c.status==='em_rota').length}</div><div class="l">🛵 Em corrida</div></div>
+    <div class="stat"><div class="n" style="color:#3B82F6">${Object.keys(POS).length}</div><div class="l">📍 Posições ativas</div></div>
+    <div class="stat"><div class="n" style="color:#FFB300">${listaPontos().length}</div><div class="l">📌 Pontos marcados</div></div>
   `;
-  
-  // 🎯 Inicializa o mapa APENAS UMA VEZ
-  if(!mapaInicializado){
-    setTimeout(()=>{
-      try{
-        mapa = L.map('mapaVivo',{
-          zoomControl:true,
-          zoomSnap: 0.5,
-          zoomDelta: 0.5,
-          wheelPxPerZoomLevel: 120
-        }).setView([-22.9,-43.2], 11);
-        
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-          maxZoom:18,
-          attribution:'© OpenStreetMap'
-        }).addTo(mapa);
-        
-        mapaInicializado = true;
-        setupCliqueMapa();
-        sincronizarMapa();
-        
-        // Mostra indicador de atualização
-        mapa.on('zoomend moveend', ()=>{
-          const status = document.getElementById('mapaStatus');
-          if(status){
-            status.style.display = 'block';
-            setTimeout(()=>{ status.style.display = 'none'; }, 2000);
-          }
-        });
-      }catch(e){
-        console.error('Erro ao inicializar mapa:', e);
-        toast('Erro ao carregar mapa: '+e.message, true);
-      }
-    }, 200);
-  } else {
-    // Mapa já existe, só sincroniza
-    setTimeout(()=>{
-      mapa.invalidateSize();
-      sincronizarMapa();
-    }, 100);
-  }
 }
 
 window.toggleModoPonto = () => {
   modoAdicionarPonto = !modoAdicionarPonto;
+  const btn = document.getElementById('btnAddPonto');
   if(modoAdicionarPonto){
-    toast(' Clique no mapa onde quer marcar um ponto');
+    btn.className = 'btn amber';
+    btn.textContent = '📌 Modo Adicionar ATIVO — clique no mapa';
+    toast('📌 Clique no mapa onde quer marcar um ponto');
     if(mapa) mapa.getContainer().style.cursor = 'crosshair';
   } else {
+    btn.className = 'btn blue';
+    btn.textContent = ' Adicionar ponto de interesse';
     if(mapa) mapa.getContainer().style.cursor = '';
   }
-  render();
 };
 
 window.centralizarMapa = () => {
@@ -415,7 +476,7 @@ window.centralizarMapa = () => {
 };
 
 window.forcarAtualizacaoMapa = async () => {
-  toast(' Atualizando...');
+  toast('🔄 Atualizando...');
   await loadAll();
   sincronizarMapa();
   toast('✅ Mapa atualizado!');
@@ -457,9 +518,9 @@ function abrirModalPonto(){
         <div class="icone-opcao" data-icone="🏥">🏥</div>
         <div class="icone-opcao" data-icone="🏫">🏫</div>
         <div class="icone-opcao" data-icone="🏪">🏪</div>
-        <div class="icone-opcao" data-icone="⛽"></div>
-        <div class="icone-opcao" data-icone="🚔"></div>
-        <div class="icone-opcao" data-icone="🏁"></div>
+        <div class="icone-opcao" data-icone="⛽">⛽</div>
+        <div class="icone-opcao" data-icone="🚔">🚔</div>
+        <div class="icone-opcao" data-icone="🏁">🏁</div>
         <div class="icone-opcao" data-icone="⭐">⭐</div>
       </div>
       <button class="btn green" style="width:100%" onclick="salvarPonto()">💾 Salvar ponto</button>
@@ -511,7 +572,7 @@ window.salvarPonto = async () => {
     modoAdicionarPonto = false;
     await loadAll();
     sincronizarMapa();
-    render();
+    renderTodasAbas();
   }catch(e){ toast('Erro: '+e.message,true); }
 };
 
@@ -519,14 +580,14 @@ window.excluirPonto = async (id) => {
   if(!confirm('Excluir este ponto de interesse?')) return;
   try{
     await api('/pontos_interesse/'+id+'.json','DELETE');
-    toast('🗑️ Ponto excluído.');
+    toast('️ Ponto excluído.');
     await loadAll();
     sincronizarMapa();
-    render();
+    renderTodasAbas();
   }catch(e){ toast('Erro: '+e.message,true); }
 };
 
-// ===================== SINCRONIZAÇÃO DO MAPA (PROFISSIONAL) =====================
+// ===================== SINCRONIZAÇÃO DO MAPA =====================
 function sincronizarMapa(){
   if(!mapa || !mapaInicializado) return;
 
@@ -538,9 +599,9 @@ function sincronizarMapa(){
     if(c.origLat && c.origLng){
       const key = 'aberta-'+c.id;
       pontosAtuais.add(key);
-      const html = `<div style="background:#FACC15;color:#000;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.5)"></div>`;
-      const tooltip = `📡 #${c.id.slice(-6)} • ${c.passageiroNome||'—'}\n📍 ${c.origEndereco||''}\n🏁 ${c.destEndereco||''}\n📏 ${c.distanciaKm||'—'} km`;
-      const popup = `<div class="mapa-info"><b>📡 PEDIDO ABERTO</b><br/><b>#${esc(c.id.slice(-6))}</b> • ${badgeSt(c.status)}<br/>🙋 ${esc(c.passageiroNome||'—')}<br/>📞 ${esc(c.passageiroTel||'—')}<br/> ${esc(c.origEndereco||'').slice(0,50)}<br/>🏁 ${esc(c.destEndereco||'').slice(0,50)}<br/>📏 ${c.distanciaKm||'—'} km<br/> ${tempoAtras(c.criadaEm)}<br/><button class="btn red mini" onclick="cancelarDoMapa('${c.id}')">️ Cancelar/Apagar pedido</button></div>`;
+      const html = `<div style="background:#FACC15;color:#000;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.5)">📍</div>`;
+      const tooltip = `📡 #${c.id.slice(-6)} • ${c.passageiroNome||'—'}\n📍 ${c.origEndereco||''}\n🏁 ${c.destEndereco||''}\n ${c.distanciaKm||'—'} km`;
+      const popup = `<div class="mapa-info"><b>📡 PEDIDO ABERTO</b><br/><b>#${esc(c.id.slice(-6))}</b> • ${badgeSt(c.status)}<br/>🙋 ${esc(c.passageiroNome||'—')}<br/>📞 ${esc(c.passageiroTel||'—')}<br/>📍 ${esc(c.origEndereco||'').slice(0,50)}<br/> ${esc(c.destEndereco||'').slice(0,50)}<br/>📏 ${c.distanciaKm||'—'} km<br/> ${tempoAtras(c.criadaEm)}<br/><button class="btn red mini" onclick="cancelarDoMapa('${c.id}')">️ Cancelar/Apagar pedido</button></div>`;
       atualizarOuCriarMarcador(key, [c.origLat,c.origLng], html, tooltip, popup);
     }
     if(c.destLat && c.destLng){
@@ -561,7 +622,7 @@ function sincronizarMapa(){
       const key = 'moto-'+c.id;
       pontosAtuais.add(key);
       const html = `<div style="background:${cor};color:#fff;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.5)">🏍️</div>`;
-      const tooltip = `️ ${c.motoqueiroNome||'Motoqueiro'}\n🙋 ${c.passageiroNome||'—'}\n💰 ${c.valorAceito?brl(c.valorAceito):'—'}\n${badgeSt(c.status).replace(/<[^>]*>/g,'')}`;
+      const tooltip = `🏍️ ${c.motoqueiroNome||'Motoqueiro'}\n🙋 ${c.passageiroNome||'—'}\n💰 ${c.valorAceito?brl(c.valorAceito):'—'}\n${badgeSt(c.status).replace(/<[^>]*>/g,'')}`;
       const popup = `<div class="mapa-info"><b>🛵 EM CORRIDA</b> ${badgeSt(c.status)}<br/><b>#${esc(c.id.slice(-6))}</b><br/>🏍️ ${esc(c.motoqueiroNome||'—')}<br/>🙋 ${esc(c.passageiroNome||'—')}<br/>💰 ${c.valorAceito?brl(c.valorAceito):'—'}<br/>🕐 ${tempoAtras(c.criadaEm)}</div>`;
       atualizarOuCriarMarcador(key, [pos.lat,pos.lng], html, tooltip, popup);
       
@@ -585,7 +646,7 @@ function sincronizarMapa(){
       pontosAtuais.add(key);
       const html = `<div style="background:${p.cor||'#EF4444'};color:#fff;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.5)">${p.icone||''}</div>`;
       const tooltip = `📌 ${p.nome}${p.obs?' — '+p.obs:''}`;
-      const popup = `<div class="mapa-info"><b>📌 ${esc(p.nome)}</b>${p.obs?'<br/><small>'+esc(p.obs)+'</small>':''}<br/><small style="color:#8B98A5">Adicionado por ${esc(p.criadoPor||'admin')}</small><br/><button class="btn red mini" onclick="excluirPonto('${p.id}')">️ Excluir ponto</button></div>`;
+      const popup = `<div class="mapa-info"><b>📌 ${esc(p.nome)}</b>${p.obs?'<br/><small>'+esc(p.obs)+'</small>':''}<br/><small style="color:#8B98A5">Adicionado por ${esc(p.criadoPor||'admin')}</small><br/><button class="btn red mini" onclick="excluirPonto('${p.id}')">🗑️ Excluir ponto</button></div>`;
       atualizarOuCriarMarcador(key, [p.lat,p.lng], html, tooltip, popup);
     }
   });
@@ -605,8 +666,8 @@ function sincronizarMapa(){
       const key = 'online-'+m.id;
       pontosAtuais.add(key);
       const html = `<div style="background:#10B981;color:#fff;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4);opacity:.8">🏍️</div>`;
-      const tooltip = ` ${m.nome}\n📞 ${m.telefone}\n🛵 ${m.modelo} ${m.placa}`;
-      const popup = `<div class="mapa-info"><b>🟢 MOTOQUEIRO ONLINE</b><br/>🏍️ ${esc(m.nome||'—')}<br/>📞 ${esc(m.telefone||'—')}<br/>🛵 ${esc(m.modelo||'—')} ${esc(m.placa||'')}<br/>🕐 Última posição: ${dataHoraFmt(ultimaPos.ts)}</div>`;
+      const tooltip = `🟢 ${m.nome}\n📞 ${m.telefone}\n ${m.modelo} ${m.placa}`;
+      const popup = `<div class="mapa-info"><b>🟢 MOTOQUEIRO ONLINE</b><br/>🏍️ ${esc(m.nome||'—')}<br/>📞 ${esc(m.telefone||'—')}<br/>🛵 ${esc(m.modelo||'—')} ${esc(m.placa||'')}<br/> Última posição: ${dataHoraFmt(ultimaPos.ts)}</div>`;
       atualizarOuCriarMarcador(key, [ultimaPos.lat,ultimaPos.lng], html, tooltip, popup);
     }
   });
@@ -634,7 +695,6 @@ function sincronizarMapa(){
 
 function atualizarOuCriarMarcador(key, latlng, html, tooltip, popup){
   if(marcadoresMapa[key]){
-    // 🎯 Só move — NUNCA recria (preserva zoom e interação)
     try{
       marcadoresMapa[key].setLatLng(latlng);
       if(marcadoresMapa[key].getTooltip){
@@ -646,7 +706,6 @@ function atualizarOuCriarMarcador(key, latlng, html, tooltip, popup){
         if(pp) pp.setContent(popup);
       }
     }catch(e){
-      // Se falhar, recria
       try{ mapa.removeLayer(marcadoresMapa[key]); }catch(e2){}
       delete marcadoresMapa[key];
       criarMarcador(key, latlng, html, tooltip, popup);
@@ -673,15 +732,17 @@ window.cancelarDoMapa = async (cid) => {
   if(!confirm('Apagar esta corrida? Ela sumirá da tela de todos os motoqueiros.')) return;
   try{ 
     await api('/corridas/'+cid+'.json','DELETE'); 
-    toast('🗑️ Corrida apagada!'); 
+    toast('️ Corrida apagada!'); 
     await loadAll(); 
     sincronizarMapa(); 
-    render(); 
+    renderTodasAbas(); 
   }catch(e){ toast('Erro: '+e.message,true); }
 };
 
 // ===================== 📌 PONTOS DE INTERESSE =====================
-function renderPontos(el){
+function renderPontos(){
+  const el = document.getElementById('aba-pontos');
+  if(!el) return;
   const pontos = listaPontos().sort((a,b)=>(a.nome||'').localeCompare(b.nome||''));
   el.innerHTML = `
     <div class="card" style="background:rgba(168,85,247,.08);border-color:rgba(168,85,247,.4)">
@@ -692,10 +753,10 @@ function renderPontos(el){
           <p style="font-size:11px;color:#A855F7;margin:0">Marque locais importantes no mapa (hospitais, escolas, pontos de encontro)</p>
         </div>
       </div>
-      <button class="btn amber" onclick="mudarTab('mapa');setTimeout(()=>{modoAdicionarPonto=true;render();},100)">🗺️ Ir para o mapa e adicionar</button>
+      <button class="btn amber" onclick="mudarAba('mapa');setTimeout(()=>{modoAdicionarPonto=true;toggleModoPonto();},100)">🗺️ Ir para o mapa e adicionar</button>
     </div>
     <div class="card">
-      <div class="lbl" style="margin-bottom:8px"> Pontos salvos (${pontos.length})</div>
+      <div class="lbl" style="margin-bottom:8px">📌 Pontos salvos (${pontos.length})</div>
       ${pontos.map(p=>`
         <div class="ponto-item">
           <div class="ponto-cor" style="background:${p.cor}"></div>
@@ -704,7 +765,7 @@ function renderPontos(el){
             <b>${esc(p.nome)}</b>
             <small>${p.obs?esc(p.obs)+' • ':''}📍 ${p.lat.toFixed(4)}, ${p.lng.toFixed(4)} • por ${esc(p.criadoPor||'admin')}</small>
           </div>
-          <button class="btn red mini" onclick="excluirPonto('${p.id}')">🗑️</button>
+          <button class="btn red mini" onclick="excluirPonto('${p.id}')">️</button>
         </div>
       `).join('') || '<p style="color:#6B7280;font-size:12px;text-align:center">Nenhum ponto marcado ainda.</p>'}
     </div>
@@ -712,10 +773,12 @@ function renderPontos(el){
 }
 
 // ===================== 🧪 CORRIDA DE TESTE =====================
-function renderTestes(el){
+function renderTestes(){
+  const el = document.getElementById('aba-testes');
+  if(!el) return;
   const motoqueirosAtivos = listaMoto().filter(m => !m.bloqueado);
   el.innerHTML = `
-    <div class="test-box" style="background:rgba(168,85,247,.08);border:1px solid rgba(168,85,247,.4);border-radius:12px;padding:16px;margin-bottom:16px">
+    <div class="card" style="background:rgba(168,85,247,.08);border:1px solid rgba(168,85,247,.4);border-radius:12px;padding:16px;margin-bottom:16px">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
         <span style="font-size:28px">🧪</span>
         <div><b style="font-size:16px;color:#E6EDF3">Criar Corrida de Teste Direta</b><p style="font-size:12px;color:#A855F7;margin:0">A corrida será enviada APENAS para o motoqueiro selecionado, sem aparecer no feed dos outros.</p></div>
@@ -775,42 +838,55 @@ window.criarCorridaTeste = async () => {
     toast('✅ Corrida de teste enviada para ' + moto.nome + '!');
     document.getElementById('testPassNome').value = 'Cliente Teste Admin';
     document.getElementById('testValor').value = '15.00';
-    await loadAll(); render();
+    await loadAll(); renderTodasAbas();
   }catch(e){ toast('Erro: '+e.message, true); }
 };
 
 // ===================== PASSAGEIROS =====================
-function renderPass(el){
+function renderPass(){
+  const el = document.getElementById('aba-pass');
+  if(!el) return;
   const lista = listaPass().filter(p => (p.nome||'').toLowerCase().includes(buscaP) || (p.telefone||'').includes(buscaP)).sort((a,b)=>(a.nome||'').localeCompare(b.nome||''));
   const corridasDe = id => listaCorridas().filter(c=>c.passageiroId===id && c.status==='concluida').length;
-  el.innerHTML = `<div class="card"><input class="inp" placeholder="🔍 Buscar por nome ou telefone..." value="${esc(buscaP)}" oninput="buscaP=this.value;render()"/></div>
+  el.innerHTML = `<div class="card"><input class="inp" placeholder="🔍 Buscar por nome ou telefone..." value="${esc(buscaP)}" oninput="buscaP=this.value;renderPass()"/></div>
     ${lista.map(p=>`<div class="item"><div class="head"><div><div class="nome">🙋 ${esc(p.nome||'—')} ${p.bloqueado?'<span class="badge b-blq">BLOQUEADO</span>':'<span class="badge b-ok">ATIVO</span>'}</div><div class="sub">📞 ${esc(p.telefone||'—')} • desde ${dataFmt(p.criadoEm)} • ${corridasDe(p.id)} corrida(s) concluída(s)</div></div></div>
-    <div class="acts"><button class="btn blue mini" onclick="abrirEditar('p','${p.id}')">✏️ Editar</button>${p.bloqueado ? `<button class="btn green mini" onclick="bloquear('p','${p.id}',false)">✅ Desbloquear</button>` : `<button class="btn red mini" onclick="bloquear('p','${p.id}',true)">🚫 Bloquear</button>`}<button class="btn ghost mini" onclick="excluir('p','${p.id}','${esc(p.nome||'')}')">🗑️ Excluir</button></div></div>`).join('') || '<div class="card" style="text-align:center;color:#6B7280">Nenhum passageiro encontrado.</div>'}`;
+    <div class="acts"><button class="btn blue mini" onclick="abrirEditar('p','${p.id}')">✏️ Editar</button>${p.bloqueado ? `<button class="btn green mini" onclick="bloquear('p','${p.id}',false)">✅ Desbloquear</button>` : `<button class="btn red mini" onclick="bloquear('p','${p.id}',true)">🚫 Bloquear</button>`}<button class="btn ghost mini" onclick="excluir('p','${p.id}','${esc(p.nome||'')}')">️ Excluir</button></div></div>`).join('') || '<div class="card" style="text-align:center;color:#6B7280">Nenhum passageiro encontrado.</div>'}`;
 }
 
 // ===================== MOTOQUEIROS =====================
-function renderMoto(el){
+function renderMoto(){
+  const el = document.getElementById('aba-moto');
+  if(!el) return;
   const lista = listaMoto().filter(m => (m.nome||'').toLowerCase().includes(buscaM) || (m.telefone||'').includes(buscaM) || (m.placa||'').toLowerCase().includes(buscaM)).sort((a,b)=>(a.nome||'').localeCompare(b.nome||''));
   const stats = id => { const cs = listaCorridas().filter(c=>c.motoqueiroId===id && c.status==='concluida'); return { n: cs.length, tot: cs.reduce((t,c)=>t+(parseFloat(c.valorAceito)||0),0) }; };
-  el.innerHTML = `<div class="card"><input class="inp" placeholder="🔍 Buscar por nome, telefone ou placa..." value="${esc(buscaM)}" oninput="buscaM=this.value;render()"/></div>
+  el.innerHTML = `<div class="card"><input class="inp" placeholder="🔍 Buscar por nome, telefone ou placa..." value="${esc(buscaM)}" oninput="buscaM=this.value;renderMoto()"/></div>
     ${lista.map(m=>{ const s = stats(m.id); return `<div class="item"><div class="head"><div><div class="nome">🏍️ ${esc(m.nome||'—')} ${m.bloqueado?'<span class="badge b-blq">BLOQUEADO</span>':'<span class="badge b-ok">ATIVO</span>'}</div><div class="sub">📞 ${esc(m.telefone||'—')} • 🪪 CNH ${esc(m.cnh||'—')}<br/>🛵 ${esc(m.modelo||'—')} ${esc(m.cor||'')} • placa ${esc(m.placa||'—')} (${esc(m.ano||'—')})<br/>💠 PIX: ${esc(m.pix||'não cadastrada')} • desde ${dataFmt(m.criadoEm)}</div><div class="sub" style="color:#00E676;font-weight:700">✅ ${s.n} corrida(s) • 💰 ${brl(s.tot)}</div></div></div>
     <div class="acts"><button class="btn blue mini" onclick="abrirEditar('m','${m.id}')">✏️ Editar</button>${m.bloqueado ? `<button class="btn green mini" onclick="bloquear('m','${m.id}',false)">✅ Desbloquear</button>` : `<button class="btn red mini" onclick="bloquear('m','${m.id}',true)">🚫 Bloquear</button>`}<button class="btn ghost mini" onclick="excluir('m','${m.id}','${esc(m.nome||'')}')">🗑️ Excluir</button></div></div>`; }).join('') || '<div class="card" style="text-align:center;color:#6B7280">Nenhum motoqueiro encontrado.</div>'}`;
 }
 
 // ===================== EDITAR CADASTRO =====================
-window.abrirEditar = (tipo,id) => { editando = {tipo,id}; render(); };
-window.cancelarEditar = () => { editando=null; render(); };
-
-function renderEditar(app){
-  const {tipo,id} = editando;
+window.abrirEditar = (tipo,id) => { 
+  editando = {tipo,id}; 
+  // Mostra modal de edição sobre o painel
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'modalEditar';
+  
   if(tipo==='p'){
     const d = P[id]||{};
-    app.innerHTML = `<div class="card" style="max-width:520px;margin:0 auto"><b style="font-size:15px">️ Editar passageiro</b><div class="lbl" style="margin-top:12px">Nome</div><input class="inp" id="eNome" value="${esc(d.nome||'')}" style="margin-bottom:10px"/><div class="lbl">Telefone</div><input class="inp" id="eTel" type="tel" value="${esc(d.telefone||'')}" style="margin-bottom:10px"/><div class="lbl">Nova senha (vazio = manter)</div><input class="inp" id="eSenha" type="password" style="margin-bottom:14px"/><button class="btn green" style="width:100%" onclick="salvarEditar()">💾 Salvar</button><button class="btn ghost" style="width:100%;margin-top:8px" onclick="cancelarEditar()">← Voltar</button></div>`;
+    overlay.innerHTML = `<div class="modal"><b style="font-size:15px">️ Editar passageiro</b><div class="lbl" style="margin-top:12px">Nome</div><input class="inp" id="eNome" value="${esc(d.nome||'')}" style="margin-bottom:10px"/><div class="lbl">Telefone</div><input class="inp" id="eTel" type="tel" value="${esc(d.telefone||'')}" style="margin-bottom:10px"/><div class="lbl">Nova senha (vazio = manter)</div><input class="inp" id="eSenha" type="password" style="margin-bottom:14px"/><button class="btn green" style="width:100%" onclick="salvarEditar()"> Salvar</button><button class="btn ghost" style="width:100%;margin-top:8px" onclick="fecharModalEditar()">← Voltar</button></div>`;
   } else {
     const d = M[id]||{};
-    app.innerHTML = `<div class="card" style="max-width:520px;margin:0 auto"><b style="font-size:15px">✏️ Editar motoqueiro</b><div class="lbl" style="margin-top:12px">Nome</div><input class="inp" id="eNome" value="${esc(d.nome||'')}" style="margin-bottom:10px"/><div class="grid2" style="margin-bottom:10px"><div><div class="lbl">Telefone</div><input class="inp" id="eTel" type="tel" value="${esc(d.telefone||'')}"/></div><div><div class="lbl">CNH</div><input class="inp" id="eCnh" value="${esc(d.cnh||'')}"/></div></div><div class="grid2" style="margin-bottom:10px"><div><div class="lbl">Placa</div><input class="inp" id="ePlaca" value="${esc(d.placa||'')}" style="text-transform:uppercase"/></div><div><div class="lbl">Cor</div><input class="inp" id="eCor" value="${esc(d.cor||'')}"/></div></div><div class="grid2" style="margin-bottom:10px"><div><div class="lbl">Modelo</div><input class="inp" id="eModelo" value="${esc(d.modelo||'')}"/></div><div><div class="lbl">Ano</div><input class="inp" id="eAno" type="number" value="${esc(d.ano||'')}"/></div></div><div class="lbl">Chave PIX</div><input class="inp" id="ePix" value="${esc(d.pix||'')}" style="margin-bottom:10px"/><div class="lbl">Nova senha (vazio = manter)</div><input class="inp" id="eSenha" type="password" style="margin-bottom:14px"/><button class="btn green" style="width:100%" onclick="salvarEditar()">💾 Salvar</button><button class="btn ghost" style="width:100%;margin-top:8px" onclick="cancelarEditar()">← Voltar</button></div>`;
+    overlay.innerHTML = `<div class="modal"><b style="font-size:15px">✏️ Editar motoqueiro</b><div class="lbl" style="margin-top:12px">Nome</div><input class="inp" id="eNome" value="${esc(d.nome||'')}" style="margin-bottom:10px"/><div class="grid2" style="margin-bottom:10px"><div><div class="lbl">Telefone</div><input class="inp" id="eTel" type="tel" value="${esc(d.telefone||'')}"/></div><div><div class="lbl">CNH</div><input class="inp" id="eCnh" value="${esc(d.cnh||'')}"/></div></div><div class="grid2" style="margin-bottom:10px"><div><div class="lbl">Placa</div><input class="inp" id="ePlaca" value="${esc(d.placa||'')}" style="text-transform:uppercase"/></div><div><div class="lbl">Cor</div><input class="inp" id="eCor" value="${esc(d.cor||'')}"/></div></div><div class="grid2" style="margin-bottom:10px"><div><div class="lbl">Modelo</div><input class="inp" id="eModelo" value="${esc(d.modelo||'')}"/></div><div><div class="lbl">Ano</div><input class="inp" id="eAno" type="number" value="${esc(d.ano||'')}"/></div></div><div class="lbl">Chave PIX</div><input class="inp" id="ePix" value="${esc(d.pix||'')}" style="margin-bottom:10px"/><div class="lbl">Nova senha (vazio = manter)</div><input class="inp" id="eSenha" type="password" style="margin-bottom:14px"/><button class="btn green" style="width:100%" onclick="salvarEditar()">💾 Salvar</button><button class="btn ghost" style="width:100%;margin-top:8px" onclick="fecharModalEditar()">← Voltar</button></div>`;
   }
-}
+  document.body.appendChild(overlay);
+};
+
+window.fecharModalEditar = () => { 
+  const m = document.getElementById('modalEditar');
+  if(m) m.remove();
+  editando = null; 
+};
 
 window.salvarEditar = async () => {
   const {tipo,id} = editando;
@@ -836,24 +912,28 @@ window.salvarEditar = async () => {
       patch.pix = (document.getElementById('ePix').value||'').trim();
     }
     await api(`/${tipo==='p'?'passageiros':'motoqueiros'}/${id}.json`,'PATCH', patch);
-    toast('✅ Cadastro atualizado!'); editando=null; await loadAll(); render();
+    toast('✅ Cadastro atualizado!'); 
+    fecharModalEditar();
+    await loadAll(); renderTodasAbas();
   }catch(e){ toast('Erro: '+e.message,true); }
 };
 
 window.bloquear = async (tipo,id,blq) => {
   const nome = ((tipo==='p'?P[id]:M[id])||{}).nome||'';
   if(!confirm(`${blq?'BLOQUEAR':'DESBLOQUEAR'} ${nome}?`)) return;
-  try{ await api(`/${tipo==='p'?'passageiros':'motoqueiros'}/${id}.json`,'PATCH',{ bloqueado: blq }); toast(blq ? '🚫 Conta bloqueada.' : '✅ Conta desbloqueada.'); await loadAll(); render(); }catch(e){ toast('Erro: '+e.message,true); }
+  try{ await api(`/${tipo==='p'?'passageiros':'motoqueiros'}/${id}.json`,'PATCH',{ bloqueado: blq }); toast(blq ? '🚫 Conta bloqueada.' : '✅ Conta desbloqueada.'); await loadAll(); renderTodasAbas(); }catch(e){ toast('Erro: '+e.message,true); }
 };
 
 window.excluir = async (tipo,id,nome) => {
   if(!confirm(`EXCLUIR permanentemente ${nome}? Esta ação não tem volta.`)) return;
   if(!confirm('ÚLTIMA CHANCE: excluir mesmo?')) return;
-  try{ await api(`/${tipo==='p'?'passageiros':'motoqueiros'}/${id}.json`,'DELETE'); toast('️ Registro excluído.'); await loadAll(); render(); }catch(e){ toast('Erro: '+e.message,true); }
+  try{ await api(`/${tipo==='p'?'passageiros':'motoqueiros'}/${id}.json`,'DELETE'); toast('🗑️ Registro excluído.'); await loadAll(); renderTodasAbas(); }catch(e){ toast('Erro: '+e.message,true); }
 };
 
 // ===================== CORRIDAS & RELATÓRIOS =====================
-function renderCor(el){
+function renderCor(){
+  const el = document.getElementById('aba-cor');
+  if(!el) return;
   const lista = corridasDoPeriodo().sort((a,b)=>new Date(b.criadaEm||0)-new Date(a.criadaEm||0));
   const concl = lista.filter(c=>c.status==='concluida');
   const tot = concl.reduce((t,c)=>t+(parseFloat(c.valorAceito)||0),0);
@@ -863,19 +943,19 @@ function renderCor(el){
   const rankLista = Object.values(rank).sort((a,b)=>b.tot-a.tot);
 
   el.innerHTML = `<div class="card" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end">
-    <div style="flex:1;min-width:140px"><div class="lbl">Status</div><select class="inp" onchange="filtroStatus=this.value;render()"><option value="todas" ${filtroStatus==='todas'?'selected':''}>Todas</option><option value="aberta" ${filtroStatus==='aberta'?'selected':''}>Abertas</option><option value="aceita" ${filtroStatus==='aceita'?'selected':''}>Aceitas</option><option value="em_rota" ${filtroStatus==='em_rota'?'selected':''}>Em rota</option><option value="concluida" ${filtroStatus==='concluida'?'selected':''}>Concluídas</option></select></div>
-    <div style="flex:1;min-width:140px"><div class="lbl">Período</div><select class="inp" onchange="filtroPeriodo=this.value;render()"><option value="1" ${filtroPeriodo==='1'?'selected':''}>Hoje</option><option value="7" ${filtroPeriodo==='7'?'selected':''}>Últimos 7 dias</option><option value="30" ${filtroPeriodo==='30'?'selected':''}>Últimos 30 dias</option><option value="tudo" ${filtroPeriodo==='tudo'?'selected':''}>Tudo</option></select></div>
+    <div style="flex:1;min-width:140px"><div class="lbl">Status</div><select class="inp" onchange="filtroStatus=this.value;renderCor()"><option value="todas" ${filtroStatus==='todas'?'selected':''}>Todas</option><option value="aberta" ${filtroStatus==='aberta'?'selected':''}>Abertas</option><option value="aceita" ${filtroStatus==='aceita'?'selected':''}>Aceitas</option><option value="em_rota" ${filtroStatus==='em_rota'?'selected':''}>Em rota</option><option value="concluida" ${filtroStatus==='concluida'?'selected':''}>Concluídas</option></select></div>
+    <div style="flex:1;min-width:140px"><div class="lbl">Período</div><select class="inp" onchange="filtroPeriodo=this.value;renderCor()"><option value="1" ${filtroPeriodo==='1'?'selected':''}>Hoje</option><option value="7" ${filtroPeriodo==='7'?'selected':''}>Últimos 7 dias</option><option value="30" ${filtroPeriodo==='30'?'selected':''}>Últimos 30 dias</option><option value="tudo" ${filtroPeriodo==='tudo'?'selected':''}>Tudo</option></select></div>
     <button class="btn green" onclick="exportarCSV()">⬇️ Exportar CSV</button></div>
     <div class="stats"><div class="stat"><div class="n" style="color:#3B82F6">${lista.length}</div><div class="l">Corridas no filtro</div></div><div class="stat"><div class="n" style="color:#9CA3AF">${concl.length}</div><div class="l">Concluídas</div></div><div class="stat"><div class="n" style="color:#00E676">${brl(tot)}</div><div class="l">Faturamento</div></div><div class="stat"><div class="n" style="color:#FFB300">${brl(media)}</div><div class="l">Ticket médio</div></div></div>
-    ${rankLista.length?`<div class="card"><div class="lbl" style="margin-bottom:8px">🏆 Ranking de motoqueiros (concluídas no período)</div><table><tr><th>Motoqueiro</th><th>Corridas</th><th>Faturou</th></tr>${rankLista.map(r=>`<tr><td>${esc(r.nome)}</td><td>${r.n}</td><td style="color:#00E676;font-weight:700">${brl(r.tot)}</td></tr>`).join('')}</table></div>`:''}
+    ${rankLista.length?`<div class="card"><div class="lbl" style="margin-bottom:8px"> Ranking de motoqueiros (concluídas no período)</div><table><tr><th>Motoqueiro</th><th>Corridas</th><th>Faturou</th></tr>${rankLista.map(r=>`<tr><td>${esc(r.nome)}</td><td>${r.n}</td><td style="color:#00E676;font-weight:700">${brl(r.tot)}</td></tr>`).join('')}</table></div>`:''}
     <div class="card"><div class="lbl" style="margin-bottom:8px">🛵 Corridas (${lista.length})</div>
-      ${lista.map(c=>{const pg = c.pagamento||{};const pgTxt = pg.status==='pago'?'PIX ✅':pg.metodo==='dinheiro'?'Dinheiro':pg.status==='pix_informado'?'PIX informado':'—';const podeCancelar = c.status === 'aberta';return `<div class="item"><div class="head"><div><div class="nome">#${esc(c.id.slice(-6))} ${badgeSt(c.status)}</div><div class="sub">🙋 ${esc(c.passageiroNome||'—')} (${esc(c.passageiroTel||'—')})<br/>📍 ${esc(c.origEndereco||'').slice(0,40)} → 🏁 ${esc(c.destEndereco||'').slice(0,40)}<br/>🏍️ ${esc(c.motoqueiroNome||'não atribuído')} • 📏 ${c.distanciaKm||'—'} km • 🕐 ${dataHoraFmt(c.criadaEm)}</div></div><div style="text-align:right"><div style="font-size:16px;font-weight:900;color:#00E676">${c.valorAceito?brl(c.valorAceito):'—'}</div><div class="sub">${pgTxt}</div>${podeCancelar ? `<button class="btn red mini" style="margin-top:6px" onclick="cancelarCorridaAdmin('${c.id}')">🗑️ Cancelar/Apagar</button>` : ''}</div></div></div>`;}).join('') || '<p style="color:#6B7280;font-size:12px;text-align:center">Nenhuma corrida no filtro.</p>'}
+      ${lista.map(c=>{const pg = c.pagamento||{};const pgTxt = pg.status==='pago'?'PIX ✅':pg.metodo==='dinheiro'?'Dinheiro':pg.status==='pix_informado'?'PIX informado':'—';const podeCancelar = c.status === 'aberta';return `<div class="item"><div class="head"><div><div class="nome">#${esc(c.id.slice(-6))} ${badgeSt(c.status)}</div><div class="sub">🙋 ${esc(c.passageiroNome||'—')} (${esc(c.passageiroTel||'—')})<br/>📍 ${esc(c.origEndereco||'').slice(0,40)} → 🏁 ${esc(c.destEndereco||'').slice(0,40)}<br/>🏍️ ${esc(c.motoqueiroNome||'não atribuído')} • 📏 ${c.distanciaKm||'—'} km •  ${dataHoraFmt(c.criadaEm)}</div></div><div style="text-align:right"><div style="font-size:16px;font-weight:900;color:#00E676">${c.valorAceito?brl(c.valorAceito):'—'}</div><div class="sub">${pgTxt}</div>${podeCancelar ? `<button class="btn red mini" style="margin-top:6px" onclick="cancelarCorridaAdmin('${c.id}')">🗑️ Cancelar/Apagar</button>` : ''}</div></div></div>`;}).join('') || '<p style="color:#6B7280;font-size:12px;text-align:center">Nenhuma corrida no filtro.</p>'}
     </div>`;
 }
 
 window.cancelarCorridaAdmin = async (cid) => {
   if(!confirm('Apagar esta corrida? Ela sumirá da tela de todos os motoqueiros imediatamente.')) return;
-  try{ await api('/corridas/'+cid+'.json','DELETE'); toast('🗑️ Corrida apagada!'); await loadAll(); render(); }catch(e){ toast('Erro: '+e.message,true); }
+  try{ await api('/corridas/'+cid+'.json','DELETE'); toast('🗑️ Corrida apagada!'); await loadAll(); renderTodasAbas(); }catch(e){ toast('Erro: '+e.message,true); }
 };
 
 window.exportarCSV = () => {
@@ -890,12 +970,14 @@ window.exportarCSV = () => {
 };
 
 // ===================== ADMINS =====================
-function renderAdm(el){
+function renderAdm(){
+  const el = document.getElementById('aba-adm');
+  if(!el) return;
   api('/admins.json','GET').then(admins=>{
     const lista = Object.values(admins||{});
-    el.innerHTML = `<div class="card" style="max-width:520px"><div class="lbl">Trocar MINHA senha</div><input class="inp" id="mSenha" type="password" placeholder="Nova senha (mín. 6)" style="margin-bottom:10px"/><button class="btn amber" onclick="trocarMinhaSenha()"> Trocar minha senha</button></div>
+    el.innerHTML = `<div class="card" style="max-width:520px"><div class="lbl">Trocar MINHA senha</div><input class="inp" id="mSenha" type="password" placeholder="Nova senha (mín. 6)" style="margin-bottom:10px"/><button class="btn amber" onclick="trocarMinhaSenha()">🔑 Trocar minha senha</button></div>
     <div class="card" style="max-width:520px"><div class="lbl">Criar admin adicional</div><input class="inp" id="nNome" placeholder="Nome" style="margin-bottom:8px"/><input class="inp" id="nUser" placeholder="Usuário" style="margin-bottom:8px"/><input class="inp" id="nSenha" type="password" placeholder="Senha (mín. 6)" style="margin-bottom:10px"/><button class="btn green" onclick="criarAdminExtra()">➕ Criar admin</button></div>
-    <div class="card" style="max-width:520px"><div class="lbl" style="margin-bottom:8px">👑 Administradores (${lista.length})</div>${lista.map(a=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px dashed rgba(255,255,255,.06)"><span style="font-size:13px"><b>${esc(a.nome||'—')}</b> <span style="color:#8B98A5">(@${esc(a.usuario||'')})</span></span>${a.id!==sessao.id?`<button class="btn red mini" onclick="excluirAdmin('${a.id}','${esc(a.nome||'')}')">🗑️</button>`:'<span class="badge b-ok">VOCÊ</span>'}</div>`).join('')}</div>`;
+    <div class="card" style="max-width:520px"><div class="lbl" style="margin-bottom:8px"> Administradores (${lista.length})</div>${lista.map(a=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px dashed rgba(255,255,255,.06)"><span style="font-size:13px"><b>${esc(a.nome||'—')}</b> <span style="color:#8B98A5">(@${esc(a.usuario||'')})</span></span>${a.id!==sessao.id?`<button class="btn red mini" onclick="excluirAdmin('${a.id}','${esc(a.nome||'')}')">🗑️</button>`:'<span class="badge b-ok">VOCÊ</span>'}</div>`).join('')}</div>`;
   });
 }
 
@@ -903,7 +985,7 @@ window.trocarMinhaSenha = async () => {
   const s = document.getElementById('mSenha').value||'';
   if(s.length<6){ toast('Senha mín. 6 caracteres.',true); return; }
   await api('/admins/'+sessao.id+'.json','PATCH',{ senhaHash: hash(s) });
-  toast(' Senha trocada!'); document.getElementById('mSenha').value='';
+  toast('🔑 Senha trocada!'); document.getElementById('mSenha').value='';
 };
 
 window.criarAdminExtra = async () => {
@@ -916,34 +998,24 @@ window.criarAdminExtra = async () => {
   if(Object.values(admins).some(a=>a.usuario===user)){ toast('Usuário já existe.',true); return; }
   const id = 'adm-'+Date.now();
   await api('/admins/'+id+'.json','PUT',{ id, nome, usuario:user, senhaHash:hash(senha), criadoEm:new Date().toISOString() });
-  toast('➕ Admin criado!'); render();
+  toast('➕ Admin criado!'); renderTodasAbas();
 };
 
 window.excluirAdmin = async (id,nome) => {
   if(!confirm('Excluir o admin '+nome+'?')) return;
-  await api('/admins/'+id+'.json','DELETE'); toast('🗑️ Admin excluído.'); render();
+  await api('/admins/'+id+'.json','DELETE'); toast('🗑️ Admin excluído.'); renderTodasAbas();
 };
 
 // ===================== INÍCIO =====================
-function iniciarPainel(){
-  render();
-  if(pollTimer) clearInterval(pollTimer);
-  pollTimer = setInterval(async ()=>{
-    await loadAll();
-    if(sessao && !editando){
-      render();
-      // 🎯 Só sincroniza o mapa se ele já existe e está na aba certa
-      if(tab==='mapa' && mapaInicializado){
-        sincronizarMapa();
-      }
-    }
-  }, 8000);
-}
-
 (async function init(){
   const s = carregarSessao();
-  if(s){ sessao = s; await loadAll(); iniciarPainel(); }
-  else renderLogin();
+  if(s){ 
+    sessao = s; 
+    await loadAll(); 
+    mostrarPainel(); 
+  } else {
+    renderLogin();
+  }
 })();
 </script>
 </body>
